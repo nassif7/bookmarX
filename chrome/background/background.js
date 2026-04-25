@@ -134,15 +134,19 @@ async function saveBookmarks(bookmarks) {
     const result = await chrome.storage.local.get(STORAGE_KEYS.BOOKMARKS);
     const existingBookmarks = result[STORAGE_KEYS.BOOKMARKS] || [];
     
-    const newBookmarks = bookmarks.filter(b => 
-      !existingBookmarks.some(eb => eb.id === b.id)
-    );
-    
-    if (newBookmarks.length === 0) {
-      return { success: true, added: 0 };
+    const newBookmarks = [];
+    const updatedExisting = [...existingBookmarks];
+
+    for (const b of bookmarks) {
+      const idx = updatedExisting.findIndex(eb => eb.id === b.id);
+      if (idx === -1) {
+        newBookmarks.push(b);
+      } else if (!updatedExisting[idx].authorName && b.authorName) {
+        updatedExisting[idx] = { ...updatedExisting[idx], authorName: b.authorName, authorHandle: b.authorHandle, authorAvatar: b.authorAvatar };
+      }
     }
-    
-    const updatedBookmarks = [...existingBookmarks, ...newBookmarks];
+
+    const updatedBookmarks = [...updatedExisting, ...newBookmarks];
     await chrome.storage.local.set({ [STORAGE_KEYS.BOOKMARKS]: updatedBookmarks });
     
     return { success: true, added: newBookmarks.length };

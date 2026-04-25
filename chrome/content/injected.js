@@ -36,7 +36,9 @@
     const tweetId = tweet.rest_id;
     if (!tweetId) return null;
 
-    const userLegacy = tweet.core?.user_results?.result?.legacy || {};
+    const userResult = tweet.core?.user_results?.result;
+    const userCore = userResult?.core || {};
+    const userLegacy = userResult?.legacy || {};
     const tweetLegacy = tweet.legacy || {};
 
     const mediaItems = [
@@ -57,9 +59,9 @@
     return {
       id: tweetId,
       text: tweetLegacy.full_text || '',
-      authorName: userLegacy.name || '',
-      authorHandle: userLegacy.screen_name || '',
-      authorAvatar: userLegacy.profile_image_url_https || '',
+      authorName: userCore.name || userLegacy.name || '',
+      authorHandle: userCore.screen_name || userLegacy.screen_name || '',
+      authorAvatar: userResult?.avatar?.image_url || userLegacy.profile_image_url_https || '',
       tweetUrl: `https://x.com/${userLegacy.screen_name}/status/${tweetId}`,
       dateBookmarked: new Date().toISOString(),
       media,
