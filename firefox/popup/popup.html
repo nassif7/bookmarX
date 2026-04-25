@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookmarkd</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" fill="currentColor"/>
+        </svg>
+        <span>Bookmarkd</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" id="exportBtn" title="Export">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </button>
+        <button class="btn-icon" id="settingsBtn" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+      <div class="search-input-wrapper">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search bookmarks...">
+        <button class="search-clear" id="searchClear" style="display: none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+      <div class="filter-group">
+        <select id="categoryFilter" class="filter-select">
+          <option value="">All Categories</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <select id="tagFilter" class="filter-select">
+          <option value="">All Tags</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="bookmarks">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+        </svg>
+        Bookmarks
+      </button>
+      <button class="tab" data-tab="categories">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+        Categories
+      </button>
+      <button class="tab" data-tab="tags">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+          <line x1="7" y1="7" x2="7.01" y2="7"/>
+        </svg>
+        Tags
+      </button>
+    </div>
+
+    <!-- Content Area -->
+    <main class="content">
+      <!-- Bookmarks Tab -->
+      <div class="tab-content active" id="tab-bookmarks">
+        <div class="bookmarks-list" id="bookmarksList">
+          <!-- Bookmarks will be rendered here -->
+        </div>
+        <div class="empty-state" id="emptyBookmarks" style="display: none;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>
+          </svg>
+          <h3>No bookmarks yet</h3>
+          <p>Visit x.com and bookmark some tweets to see them here</p>
+        </div>
+      </div>
+
+      <!-- Categories Tab -->
+      <div class="tab-content" id="tab-categories">
+        <div class="categories-header">
+          <button class="btn btn-primary" id="addCategoryBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Category
+          </button>
+        </div>
+        <div class="categories-list" id="categoriesList">
+          <!-- Categories will be rendered here -->
+        </div>
+        <div class="empty-state" id="emptyCategories" style="display: none;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <h3>No categories yet</h3>
+          <p>Create categories to organize your bookmarks</p>
+        </div>
+      </div>
+
+      <!-- Tags Tab -->
+      <div class="tab-content" id="tab-tags">
+        <div class="tags-header">
+          <button class="btn btn-primary" id="addTagBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Tag
+          </button>
+        </div>
+        <div class="tags-list" id="tagsList">
+          <!-- Tags will be rendered here -->
+        </div>
+        <div class="empty-state" id="emptyTags" style="display: none;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+          <h3>No tags yet</h3>
+          <p>Create tags to label your bookmarks</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Stats Bar -->
+    <footer class="stats-bar">
+      <span id="bookmarkCount">0 bookmarks</span>
+      <span class="stats-divider">•</span>
+      <span id="categoryCount">0 categories</span>
+      <span class="stats-divider">•</span>
+      <span id="tagCount">0 tags</span>
+    </footer>
+  </div>
+
+  <!-- Modals -->
+  <!-- Category Modal -->
+  <div class="modal" id="categoryModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="categoryModalTitle">Add Category</h3>
+        <button class="modal-close" data-close="categoryModal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="categoryName">Name</label>
+          <input type="text" id="categoryName" class="form-input" placeholder="Category name">
+        </div>
+        <div class="form-group">
+          <label for="categoryColor">Color</label>
+          <div class="color-picker">
+            <input type="color" id="categoryColor" value="#6366f1">
+            <div class="color-presets">
+              <button class="color-preset" data-color="#6366f1" style="background: #6366f1;"></button>
+              <button class="color-preset" data-color="#10b981" style="background: #10b981;"></button>
+              <button class="color-preset" data-color="#f59e0b" style="background: #f59e0b;"></button>
+              <button class="color-preset" data-color="#ef4444" style="background: #ef4444;"></button>
+              <button class="color-preset" data-color="#8b5cf6" style="background: #8b5cf6;"></button>
+              <button class="color-preset" data-color="#ec4899" style="background: #ec4899;"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close="categoryModal">Cancel</button>
+        <button class="btn btn-primary" id="saveCategoryBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tag Modal -->
+  <div class="modal" id="tagModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="tagModalTitle">Add Tag</h3>
+        <button class="modal-close" data-close="tagModal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="tagName">Name</label>
+          <input type="text" id="tagName" class="form-input" placeholder="Tag name">
+        </div>
+        <div class="form-group">
+          <label for="tagColor">Color</label>
+          <div class="color-picker">
+            <input type="color" id="tagColor" value="#10b981">
+            <div class="color-presets">
+              <button class="color-preset" data-color="#10b981" style="background: #10b981;"></button>
+              <button class="color-preset" data-color="#6366f1" style="background: #6366f1;"></button>
+              <button class="color-preset" data-color="#f59e0b" style="background: #f59e0b;"></button>
+              <button class="color-preset" data-color="#ef4444" style="background: #ef4444;"></button>
+              <button class="color-preset" data-color="#8b5cf6" style="background: #8b5cf6;"></button>
+              <button class="color-preset" data-color="#ec4899" style="background: #ec4899;"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close="tagModal">Cancel</button>
+        <button class="btn btn-primary" id="saveTagBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal" id="exportModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Export Bookmarks</h3>
+        <button class="modal-close" data-close="exportModal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Choose export format:</p>
+        <div class="export-options">
+          <button class="export-option" id="exportJson">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span>JSON</span>
+          </button>
+          <button class="export-option" id="exportCsv">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="8" y1="13" x2="16" y2="13"/>
+              <line x1="8" y1="17" x2="16" y2="17"/>
+            </svg>
+            <span>CSV</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bookmark Detail Modal -->
+  <div class="modal" id="bookmarkDetailModal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>Bookmark Details</h3>
+        <button class="modal-close" data-close="bookmarkDetailModal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" id="bookmarkDetailContent">
+        <!-- Bookmark details will be rendered here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
