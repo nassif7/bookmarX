@@ -387,13 +387,13 @@ function renderBookmarks() {
           ` : ''}
         </div>
         <div class="bookmark-actions">
-          <button class="bookmark-action-btn edit" title="Edit" onclick="event.stopPropagation(); openBookmarkDetail('${bookmark.id}')">
+          <button class="bookmark-action-btn edit" title="Edit">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
           </button>
-          <button class="bookmark-action-btn delete" title="Delete" onclick="event.stopPropagation(); deleteBookmark('${bookmark.id}')">
+          <button class="bookmark-action-btn delete" title="Delete">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -404,11 +404,16 @@ function renderBookmarks() {
     `;
   }).join('');
   
-  // Add click listeners
   document.querySelectorAll('.bookmark-item').forEach(item => {
     item.addEventListener('click', () => openBookmarkDetail(item.dataset.id));
-    
-    // Drag and drop
+    item.querySelector('.bookmark-action-btn.edit').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openBookmarkDetail(item.dataset.id);
+    });
+    item.querySelector('.bookmark-action-btn.delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteBookmark(item.dataset.id);
+    });
     item.addEventListener('dragstart', handleDragStart);
     item.addEventListener('dragend', handleDragEnd);
     item.addEventListener('dragover', handleDragOver);
@@ -430,7 +435,7 @@ function renderCategories() {
   
   elements.categoriesList.innerHTML = state.categories.map(cat => {
     const count = state.bookmarks.filter(b => b.categoryId === cat.id).length;
-    
+
     return `
       <div class="category-item" data-id="${cat.id}">
         <div class="category-info">
@@ -439,12 +444,17 @@ function renderCategories() {
           <span class="category-count">${count} bookmark${count !== 1 ? 's' : ''}</span>
         </div>
         <div class="category-actions">
-          <button class="btn btn-sm btn-secondary" onclick="editCategory('${cat.id}')">Edit</button>
-          <button class="btn btn-sm btn-secondary" onclick="deleteCategory('${cat.id}')">Delete</button>
+          <button class="btn btn-sm btn-secondary edit">Edit</button>
+          <button class="btn btn-sm btn-secondary delete">Delete</button>
         </div>
       </div>
     `;
   }).join('');
+
+  document.querySelectorAll('.category-item').forEach(item => {
+    item.querySelector('.edit').addEventListener('click', () => editCategory(item.dataset.id));
+    item.querySelector('.delete').addEventListener('click', () => deleteCategory(item.dataset.id));
+  });
 }
 
 /**
@@ -461,13 +471,13 @@ function renderTags() {
   
   elements.tagsList.innerHTML = state.tags.map(tag => {
     const count = state.bookmarks.filter(b => b.tagIds && b.tagIds.includes(tag.id)).length;
-    
+
     return `
       <div class="tag-item" data-id="${tag.id}">
         <div class="tag-color" style="background: ${tag.color}"></div>
         <span class="tag-name">${escapeHtml(tag.name)}</span>
         <span class="tag-count">${count}</span>
-        <button class="tag-delete" onclick="deleteTag('${tag.id}')">
+        <button class="tag-delete">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"/>
             <line x1="6" y1="6" x2="18" y2="18"/>
@@ -476,6 +486,10 @@ function renderTags() {
       </div>
     `;
   }).join('');
+
+  document.querySelectorAll('.tag-item').forEach(item => {
+    item.querySelector('.tag-delete').addEventListener('click', () => deleteTag(item.dataset.id));
+  });
 }
 
 /**
@@ -678,7 +692,7 @@ function openBookmarkDetail(id) {
       <div class="bookmark-detail-section">
         <h4>Category</h4>
         <div class="bookmark-detail-categories">
-          <select class="filter-select" id="bookmarkCategorySelect" onchange="assignCategory('${bookmark.id}', this.value)">
+          <select class="filter-select" id="bookmarkCategorySelect">
             <option value="">No Category</option>
             ${state.categories.map(cat => `
               <option value="${cat.id}" ${bookmark.categoryId === cat.id ? 'selected' : ''}>${escapeHtml(cat.name)}</option>
@@ -693,8 +707,7 @@ function openBookmarkDetail(id) {
           ${state.tags.map(tag => {
             const isAssigned = bookmark.tagIds && bookmark.tagIds.includes(tag.id);
             return `
-              <span class="bookmark-tag" style="background: ${tag.color}20; color: ${tag.color}; cursor: pointer; ${isAssigned ? 'border: 1px solid ' + tag.color : ''}" 
-                    onclick="toggleTag('${bookmark.id}', '${tag.id}')">
+              <span class="bookmark-tag" data-tag-id="${tag.id}" style="background: ${tag.color}20; color: ${tag.color}; cursor: pointer; ${isAssigned ? 'border: 1px solid ' + tag.color : ''}">
                 ${escapeHtml(tag.name)}
               </span>
             `;
@@ -706,6 +719,13 @@ function openBookmarkDetail(id) {
   `;
   
   openModal('bookmarkDetailModal');
+
+  document.getElementById('bookmarkCategorySelect').addEventListener('change', function () {
+    assignCategory(bookmark.id, this.value);
+  });
+  document.querySelectorAll('.bookmark-detail-tags .bookmark-tag[data-tag-id]').forEach(span => {
+    span.addEventListener('click', () => toggleTag(bookmark.id, span.dataset.tagId));
+  });
 }
 
 /**

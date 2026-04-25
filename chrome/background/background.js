@@ -131,9 +131,10 @@ async function handleMessage(message) {
  */
 async function saveBookmarks(bookmarks) {
   try {
-    const result = await chrome.storage.local.get(STORAGE_KEYS.BOOKMARKS);
+    const result = await chrome.storage.local.get([STORAGE_KEYS.BOOKMARKS, STORAGE_KEYS.TAGS]);
     const existingBookmarks = result[STORAGE_KEYS.BOOKMARKS] || [];
-    
+    let tags = result[STORAGE_KEYS.TAGS] || [];
+
     const newBookmarks = [];
     const updatedExisting = [...existingBookmarks];
 
@@ -146,9 +147,28 @@ async function saveBookmarks(bookmarks) {
       }
     }
 
+    // Auto-create tags from hashtags on new bookmarks
+    const tagColors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#0ea5e9', '#14b8a6'];
+    let tagsChanged = false;
+    for (const bookmark of newBookmarks) {
+      if (!bookmark.hashtags?.length) continue;
+      if (!bookmark.tagIds) bookmark.tagIds = [];
+      for (const hashtag of bookmark.hashtags) {
+        const lower = hashtag.toLowerCase();
+        let tag = tags.find(t => t.name.toLowerCase() === lower);
+        if (!tag) {
+          tag = { id: generateId(), name: hashtag, color: tagColors[tags.length % tagColors.length], createdAt: new Date().toISOString() };
+          tags.push(tag);
+          tagsChanged = true;
+        }
+        if (!bookmark.tagIds.includes(tag.id)) bookmark.tagIds.push(tag.id);
+      }
+    }
+
+    if (tagsChanged) await chrome.storage.local.set({ [STORAGE_KEYS.TAGS]: tags });
     const updatedBookmarks = [...updatedExisting, ...newBookmarks];
     await chrome.storage.local.set({ [STORAGE_KEYS.BOOKMARKS]: updatedBookmarks });
-    
+
     return { success: true, added: newBookmarks.length };
   } catch (error) {
     console.error('Bookmarkd: Error saving bookmarks', error);
