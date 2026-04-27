@@ -1,6 +1,12 @@
-# Bookmarkd - X (Twitter) Bookmark Manager
+# BookmarX - X (Twitter) Bookmark Manager
 
 A browser extension that helps X (Twitter) users manage their bookmarks properly with categories, tags, and powerful search.
+
+## Support the Project
+
+If you find BookmarX useful, consider supporting its development:
+
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nn498137)
 
 ## Features
 
@@ -30,18 +36,21 @@ A browser extension that helps X (Twitter) users manage their bookmarks properly
 
 ## Installation
 
+> **Note:** BookmarX is not yet published to the Chrome Web Store. Follow the steps below to install it locally in developer mode.
+
 ### Chrome
 
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable "Developer mode" in the top right
-3. Click "Load unpacked"
-4. Select the `chrome` folder in this project
+1. [Download or clone this repository](https://github.com/nassif/bookmarX) to your machine
+2. Open Chrome and navigate to `chrome://extensions/`
+3. Enable **Developer mode** using the toggle in the top-right corner
+4. Click **Load unpacked**
+5. Select the `chrome` folder inside the project directory
+6. The BookmarX icon should appear in your extensions bar — pin it for easy access
+7. Visit [x.com](https://x.com) and open your bookmarks to start syncing
 
 ### Firefox
 
-1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
-2. Click "Load Temporary Add-on..."
-3. Select any file in the `firefox` folder (e.g., manifest.json)
+> 🚧 Firefox support is coming soon.
 
 ## Project Structure
 
@@ -58,14 +67,12 @@ bookmarX/
 │   │   ├── popup.js          # Popup logic
 │   │   └── styles.css        # UI styles
 │   └── icons/                # Extension icons
-└── firefox/
-    └── (same structure)
 ```
 
 ## Storage
 
-- Uses Chrome/Firefox local extension storage
-- No server required - all data stays local
+- Uses Chrome local extension storage
+- No server required — all data stays on your machine
 
 ## License
 
