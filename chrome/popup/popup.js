@@ -576,13 +576,13 @@ function openBookmarkDetail(id) {
     </div>
     <p class="detail-text">${escapeHtml(b.text)}</p>
     <div>
-      <a class="detail-link" href="${b.tweetUrl}" target="_blank">
+      <button class="detail-link" data-url="${b.tweetUrl}">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
           <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
         </svg>
         View on X
-      </a>
+      </button>
     </div>
     <div class="detail-section">
       <h4>Collection</h4>
@@ -591,19 +591,23 @@ function openBookmarkDetail(id) {
         ${state.categories.map(c => `<option value="${c.id}" ${b.categoryId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
       </select>
     </div>
-    ${state.tags.length > 0 ? `
+    ${(b.tagIds?.length > 0) ? `
     <div class="detail-section">
       <h4>Tags</h4>
       <div class="tag-chips">
-        ${state.tags.map(t => {
-          const on = b.tagIds && b.tagIds.includes(t.id);
-          return `<span class="tag-chip" data-tag-id="${t.id}" style="background:${t.color}22;color:${t.color};${on ? `border-color:${t.color}` : ''}">${escapeHtml(t.name)}</span>`;
+        ${b.tagIds.map(tid => {
+          const t = state.tags.find(x => x.id === tid);
+          return t ? `<span class="tag-chip" style="background:${t.color}22;color:${t.color};border-color:${t.color}">${escapeHtml(t.name)}</span>` : '';
         }).join('')}
       </div>
     </div>` : ''}
   `;
 
   openModal('bookmarkDetailModal');
+
+  document.querySelector('.detail-link[data-url]').addEventListener('click', (e) => {
+    chrome.tabs.update({ url: e.currentTarget.dataset.url });
+  });
 
   document.getElementById('detailCategorySelect').addEventListener('change', async function () {
     await send({ action: 'ASSIGN_CATEGORY', data: { bookmarkId: b.id, categoryId: this.value || null } });
@@ -612,16 +616,6 @@ function openBookmarkDetail(id) {
     openBookmarkDetail(b.id);
   });
 
-  document.querySelectorAll('.tag-chip[data-tag-id]').forEach(chip => {
-    chip.addEventListener('click', async () => {
-      const tagId = chip.dataset.tagId;
-      const hasTag = b.tagIds && b.tagIds.includes(tagId);
-      await send({ action: hasTag ? 'REMOVE_TAG_FROM_BOOKMARK' : 'ADD_TAG_TO_BOOKMARK', data: { bookmarkId: b.id, tagId } });
-      await loadData();
-      render();
-      openBookmarkDetail(b.id);
-    });
-  });
 }
 
 // ── Export ────────────────────────────────────────────────────
