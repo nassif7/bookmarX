@@ -1,6 +1,6 @@
 // filepath: chrome/background/background.js
 /**
- * Background service worker for Bookmarkd
+ * Background service worker for BookmarX
  * Handles storage, message passing, and extension lifecycle
  */
 
@@ -37,14 +37,14 @@ async function initializeStorage() {
 chrome.runtime.onInstalled.addListener(() => {
   initializeStorage();
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
-  console.log('Bookmarkd: Extension installed');
+  console.log('BookmarX: Extension installed');
 });
 
 // Initialize on startup
 chrome.runtime.onStartup.addListener(() => {
   initializeStorage();
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
-  console.log('Bookmarkd: Extension started');
+  console.log('BookmarX: Extension started');
 });
 
 /**
@@ -197,7 +197,7 @@ async function saveBookmarks(bookmarks) {
 
     return { success: true, added: newBookmarks.length };
   } catch (error) {
-    console.error('Bookmarkd: Error saving bookmarks', error);
+    console.error('BookmarX: Error saving bookmarks', error);
     return { success: false, error: error.message };
   }
 }
@@ -701,4 +701,4 @@ function generateId() {
 // Initialize storage on load
 initializeStorage();
 
-console.log('Bookmarkd: Background service worker loaded');
+console.log('BookmarX: Background service worker loaded');

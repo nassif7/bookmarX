@@ -110,7 +110,7 @@
   // Bridge: main-world postMessage → background
   window.addEventListener('message', async (event) => {
     if (event.source !== window) return;
-    if (!event.data || event.data.source !== 'bookmarkd-injected') return;
+    if (!event.data || event.data.source !== 'bookmarx-injected') return;
 
     const { action, bookmarks } = event.data;
     if (action === 'BOOKMARKS_CAPTURED' && bookmarks?.length > 0) {

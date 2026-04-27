@@ -121,7 +121,7 @@
       const bookmarks = processResponse(data);
       if (bookmarks.length > 0) {
         window.postMessage(
-          { source: 'bookmarkd-injected', action: 'BOOKMARKS_CAPTURED', bookmarks },
+          { source: 'bookmarx-injected', action: 'BOOKMARKS_CAPTURED', bookmarks },
           '*'
         );
       }
@@ -144,14 +144,14 @@
   const originalSend = XMLHttpRequest.prototype.send;
 
   XMLHttpRequest.prototype.open = function (method, url) {
-    this._bookmarkdUrl = url;
+    this._bookmarxUrl = url;
     return originalOpen.apply(this, arguments);
   };
 
   XMLHttpRequest.prototype.send = function () {
     this.addEventListener('load', function () {
       try {
-        const url = this._bookmarkdUrl || '';
+        const url = this._bookmarxUrl || '';
         if (isBookmarkEndpoint(url)) {
           const data = JSON.parse(this.responseText);
           handleResponseData(url, data);
