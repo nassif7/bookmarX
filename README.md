@@ -12,9 +12,8 @@ If you find BookmarX useful, consider supporting its development:
 
 - 🔍 **Search** - Search bookmarks by keyword
 - 📁 **Categories** - Create, rename, delete categories (like folders)
-- 🏷️ **Tags** - Create tags and assign multiple tags to a bookmark
-- 📌 **Organize** - Assign bookmarks to a category, add tags
-- 🗑️ **Delete** - Delete bookmarks from the UI
+- 🏷️ **Tags** - Assign tags to bookmarks
+- 📌 **Organize** - Assign bookmarks to a category
 - 📤 **Export** - Export all bookmarks as CSV or JSON
 - 📸 **Media** - Capture and display media from bookmarked tweets
 
