@@ -56,15 +56,32 @@
       }
     }
 
+    const authorHandle = userCore.screen_name || userLegacy.screen_name || '';
+
+    // Determine media type
+    let mediaType = 'post';
+    if (media.some(m => m.type === 'video' || m.type === 'animated_gif')) {
+      mediaType = 'video';
+    } else if (media.some(m => m.type === 'photo')) {
+      mediaType = 'photo';
+    } else if (
+      tweetLegacy.in_reply_to_screen_name &&
+      authorHandle &&
+      tweetLegacy.in_reply_to_screen_name.toLowerCase() === authorHandle.toLowerCase()
+    ) {
+      mediaType = 'thread';
+    }
+
     return {
       id: tweetId,
       text: tweetLegacy.full_text || '',
       authorName: userCore.name || userLegacy.name || '',
-      authorHandle: userCore.screen_name || userLegacy.screen_name || '',
+      authorHandle,
       authorAvatar: userResult?.avatar?.image_url || userLegacy.profile_image_url_https || '',
-      tweetUrl: `https://x.com/${userLegacy.screen_name}/status/${tweetId}`,
+      tweetUrl: `https://x.com/${authorHandle}/status/${tweetId}`,
       dateBookmarked: new Date().toISOString(),
       media,
+      mediaType,
       hashtags: tweetLegacy.entities?.hashtags?.map((h) => h.text) || [],
       mentions: tweetLegacy.entities?.user_mentions?.map((m) => m.screen_name) || [],
       createdAt: tweetLegacy.created_at || new Date().toISOString(),

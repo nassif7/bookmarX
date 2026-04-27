@@ -36,12 +36,14 @@ async function initializeStorage() {
 // Initialize on install
 chrome.runtime.onInstalled.addListener(() => {
   initializeStorage();
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   console.log('Bookmarkd: Extension installed');
 });
 
 // Initialize on startup
 chrome.runtime.onStartup.addListener(() => {
   initializeStorage();
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   console.log('Bookmarkd: Extension started');
 });
 
@@ -117,6 +119,9 @@ async function handleMessage(message) {
     case 'GET_STATS':
       return await getStats();
 
+    case 'RECATEGORIZE_BOOKMARKS':
+      return await recategorizeBookmarks();
+
     case 'SCROLL_PROGRESS':
     case 'SCROLL_COMPLETE':
       return { success: true };
@@ -129,10 +134,22 @@ async function handleMessage(message) {
 /**
  * Save multiple bookmarks
  */
+function autoCategorize(bookmark, categories) {
+  const text = (bookmark.text || '').toLowerCase();
+  const hashtags = (bookmark.hashtags || []).map(h => h.toLowerCase());
+  for (const cat of categories) {
+    for (const kw of (cat.keywords || [])) {
+      if (text.includes(kw) || hashtags.includes(kw)) return cat.id;
+    }
+  }
+  return null;
+}
+
 async function saveBookmarks(bookmarks) {
   try {
-    const result = await chrome.storage.local.get([STORAGE_KEYS.BOOKMARKS, STORAGE_KEYS.TAGS]);
+    const result = await chrome.storage.local.get([STORAGE_KEYS.BOOKMARKS, STORAGE_KEYS.TAGS, STORAGE_KEYS.CATEGORIES]);
     const existingBookmarks = result[STORAGE_KEYS.BOOKMARKS] || [];
+    const categories = result[STORAGE_KEYS.CATEGORIES] || [];
     let tags = result[STORAGE_KEYS.TAGS] || [];
 
     const newBookmarks = [];
@@ -166,6 +183,15 @@ async function saveBookmarks(bookmarks) {
     }
 
     if (tagsChanged) await chrome.storage.local.set({ [STORAGE_KEYS.TAGS]: tags });
+
+    // Auto-assign category to new bookmarks that don't have one
+    for (const bookmark of newBookmarks) {
+      if (!bookmark.categoryId) {
+        const catId = autoCategorize(bookmark, categories);
+        if (catId) bookmark.categoryId = catId;
+      }
+    }
+
     const updatedBookmarks = [...updatedExisting, ...newBookmarks];
     await chrome.storage.local.set({ [STORAGE_KEYS.BOOKMARKS]: updatedBookmarks });
 
@@ -290,6 +316,7 @@ async function addCategory(category) {
       id: generateId(),
       name: category.name,
       color: category.color || '#6366f1',
+      keywords: category.keywords || [],
       createdAt: new Date().toISOString()
     };
     
@@ -500,6 +527,32 @@ async function removeTagFromBookmark(bookmarkId, tagId) {
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Re-apply category keyword rules to all bookmarks
+ */
+async function recategorizeBookmarks() {
+  try {
+    const result = await chrome.storage.local.get([STORAGE_KEYS.BOOKMARKS, STORAGE_KEYS.CATEGORIES]);
+    const bookmarks = result[STORAGE_KEYS.BOOKMARKS] || [];
+    const categories = result[STORAGE_KEYS.CATEGORIES] || [];
+
+    let changed = 0;
+    const updated = bookmarks.map(b => {
+      const catId = autoCategorize(b, categories);
+      if (catId && b.categoryId !== catId) {
+        changed++;
+        return { ...b, categoryId: catId };
+      }
+      return b;
+    });
+
+    if (changed > 0) await chrome.storage.local.set({ [STORAGE_KEYS.BOOKMARKS]: updated });
+    return { success: true, changed };
+  } catch (error) {
+    return { success: false, error: error.message, changed: 0 };
   }
 }
 

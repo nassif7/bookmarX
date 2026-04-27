@@ -1,905 +1,692 @@
-// filepath: chrome/popup/popup.js
-/**
- * Bookmarkd Popup Script
- * Handles all UI interactions and communicates with background script
- */
+// BookmarX popup — Spotlight redesign
 
-// Listen for scroll events from content script (must be top-level, not inside init)
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.action === 'SCROLL_COMPLETE') {
+const SUGGESTED_CATEGORIES = [
+  { name: 'Tech',     color: '#6366f1', keywords: ['javascript','typescript','python','react','nodejs','github','coding','programming','developer','software'] },
+  { name: 'AI & ML',  color: '#8b5cf6', keywords: ['ai','gpt','llm','openai','claude','chatgpt','machine learning','neural','gemini','deepmind'] },
+  { name: 'Design',   color: '#ec4899', keywords: ['design','ux','ui','figma','css','typography','branding','animation','interface'] },
+  { name: 'Business', color: '#f59e0b', keywords: ['startup','founder','entrepreneurship','saas','product','growth','revenue','b2b','marketing'] },
+  { name: 'Finance',  color: '#10b981', keywords: ['crypto','bitcoin','stocks','investing','trading','finance','web3','defi','eth'] },
+  { name: 'Science',  color: '#0ea5e9', keywords: ['research','science','biology','physics','chemistry','study','paper','space','climate'] },
+  { name: 'Health',   color: '#ef4444', keywords: ['fitness','nutrition','health','workout','wellness','mindfulness','diet','sleep'] },
+  { name: 'News',     color: '#6b7280', keywords: ['politics','economy','election','news','breaking','government','policy'] },
+];
+
+// ── State ────────────────────────────────────────────────────
+let state = {
+  bookmarks: [],
+  categories: [],
+  tags: [],
+  activeCategory: '',      // '' = All, 'uncategorized' = no collection
+  tagFilter: '',
+  typeFilter: '',
+  searchQuery: '',
+  editingCategory: null,
+};
+
+let isSyncing = false;
+let syncPollInterval = null;
+let onboardingCategories = [];
+
+// ── Boot ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', init);
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.action === 'SCROLL_COMPLETE') {
     clearInterval(syncPollInterval);
     isSyncing = false;
-    setSyncBanner(false);
+    setSyncOverlay(false);
     loadData().then(() => {
       render();
-      showToast(`Sync complete — ${state.bookmarks.length} bookmark${state.bookmarks.length !== 1 ? 's' : ''} saved`, 'success');
+      const label = msg.data?.stoppedEarly ? 'Caught up — only new bookmarks fetched' : `Sync complete`;
+      showToast(`${label} · ${state.bookmarks.length} total`, 'success');
     });
   }
 });
 
-let isSyncing = false;
-let syncPollInterval = null;
+async function init() {
+  await loadSettings();
+  const { onboardingComplete } = await chrome.storage.local.get('onboardingComplete');
+  if (!onboardingComplete) {
+    showOnboarding();
+    return;
+  }
+  attachListeners();
+  await loadData();
+  render();
+}
 
+// ── Settings (theme + accent) ────────────────────────────────
+const DEFAULT_ACCENT = '#f97316';
+
+async function loadSettings() {
+  const { appSettings } = await chrome.storage.local.get('appSettings');
+  const s = appSettings || {};
+  applyTheme(s.theme || 'system');
+  applyAccent(s.accent || DEFAULT_ACCENT);
+}
+
+async function saveSettings(patch) {
+  const { appSettings } = await chrome.storage.local.get('appSettings');
+  const updated = { ...(appSettings || {}), ...patch };
+  await chrome.storage.local.set({ appSettings: updated });
+}
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme === 'dark')  { root.setAttribute('data-theme', 'dark'); }
+  else if (theme === 'light') { root.setAttribute('data-theme', 'light'); }
+  else { root.removeAttribute('data-theme'); }
+
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.theme === theme);
+  });
+}
+
+function applyAccent(color) {
+  const root = document.documentElement;
+  root.style.setProperty('--accent', color);
+  root.style.setProperty('--accent-hover', darkenHex(color, 18));
+  root.style.setProperty('--accent-muted', hexToRgba(color, 0.12));
+
+  document.querySelectorAll('.accent-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.color === color);
+  });
+  const custom = document.getElementById('accentCustom');
+  if (custom) custom.value = color;
+}
+
+function darkenHex(hex, amount) {
+  const n = parseInt(hex.replace('#',''), 16);
+  const r = Math.max(0, (n >> 16) - amount);
+  const g = Math.max(0, ((n >> 8) & 0xff) - amount);
+  const b = Math.max(0, (n & 0xff) - amount);
+  return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+function hexToRgba(hex, alpha) {
+  const n = parseInt(hex.replace('#',''), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 0xff},${n & 0xff},${alpha})`;
+}
+
+// ── Onboarding ───────────────────────────────────────────────
+const CHECK_SVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+function showOnboarding() {
+  onboardingCategories = SUGGESTED_CATEGORIES.map(c => ({ ...c, keywords: [...c.keywords], selected: true, isCustom: false }));
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('onboarding').style.display = 'flex';
+  // Onboarding doesn't have settings panel, nothing else needed
+  renderOnboardingList();
+
+  document.getElementById('onboardingDoneBtn').addEventListener('click', completeOnboarding);
+  document.getElementById('onboardingSkipBtn').addEventListener('click', skipOnboarding);
+  document.getElementById('onboardingAddBtn').addEventListener('click', () => {
+    const colors = ['#f97316','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+    onboardingCategories.push({ name: '', color: colors[onboardingCategories.length % colors.length], keywords: [], selected: true, isCustom: true });
+    renderOnboardingList();
+    document.querySelectorAll('.onboarding-name-input').at(-1)?.focus();
+  });
+}
+
+function renderOnboardingList() {
+  const list = document.getElementById('onboardingList');
+  list.innerHTML = onboardingCategories.map((cat, i) => `
+    <div class="onboarding-cat ${cat.selected ? 'active' : ''}" data-index="${i}">
+      <div class="onboarding-toggle">${cat.selected ? CHECK_SVG : ''}</div>
+      <span class="onboarding-dot" style="background:${cat.color}"></span>
+      ${cat.isCustom
+        ? `<input class="onboarding-name-input" data-index="${i}" value="${escapeHtml(cat.name)}" placeholder="Name">`
+        : `<span class="onboarding-name">${escapeHtml(cat.name)}</span>`}
+      <input class="onboarding-keywords" data-index="${i}" value="${cat.keywords.join(', ')}" placeholder="keywords">
+      ${cat.isCustom ? `<button class="onboarding-remove" data-index="${i}">×</button>` : ''}
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.onboarding-cat').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.closest('.onboarding-remove')) return;
+      const i = parseInt(card.dataset.index);
+      onboardingCategories[i].selected = !onboardingCategories[i].selected;
+      card.classList.toggle('active', onboardingCategories[i].selected);
+      card.querySelector('.onboarding-toggle').innerHTML = onboardingCategories[i].selected ? CHECK_SVG : '';
+    });
+  });
+  list.querySelectorAll('.onboarding-keywords').forEach(inp => {
+    inp.addEventListener('input', () => {
+      onboardingCategories[parseInt(inp.dataset.index)].keywords = inp.value.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+    });
+    inp.addEventListener('click', e => e.stopPropagation());
+  });
+  list.querySelectorAll('.onboarding-name-input').forEach(inp => {
+    inp.addEventListener('input', () => { onboardingCategories[parseInt(inp.dataset.index)].name = inp.value; });
+    inp.addEventListener('click', e => e.stopPropagation());
+  });
+  list.querySelectorAll('.onboarding-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onboardingCategories.splice(parseInt(btn.dataset.index), 1);
+      renderOnboardingList();
+    });
+  });
+}
+
+async function completeOnboarding() {
+  document.querySelectorAll('.onboarding-keywords').forEach(inp => {
+    onboardingCategories[parseInt(inp.dataset.index)].keywords = inp.value.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+  });
+  document.querySelectorAll('.onboarding-name-input').forEach(inp => {
+    onboardingCategories[parseInt(inp.dataset.index)].name = inp.value.trim();
+  });
+  for (const cat of onboardingCategories.filter(c => c.selected && c.name.trim())) {
+    await send({ action: 'ADD_CATEGORY', data: { category: { name: cat.name, color: cat.color, keywords: cat.keywords } } });
+  }
+  await finishOnboarding();
+}
+
+async function skipOnboarding() { await finishOnboarding(); }
+
+async function finishOnboarding() {
+  await chrome.storage.local.set({ onboardingComplete: true });
+  document.getElementById('onboarding').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  attachListeners();
+  await loadData();
+  render();
+}
+
+// ── Listeners ────────────────────────────────────────────────
+function attachListeners() {
+  // Search
+  document.getElementById('searchInput').addEventListener('input', handleSearch);
+  document.getElementById('searchClear').addEventListener('click', clearSearch);
+
+  // Sync button (in search row)
+  document.getElementById('syncBtn').addEventListener('click', startSync);
+  document.getElementById('stopSyncBtn').addEventListener('click', stopSync);
+  document.getElementById('emptySyncBtn')?.addEventListener('click', startSync);
+
+  // Tag + type filters
+  document.getElementById('tagFilter').addEventListener('change', (e) => {
+    state.tagFilter = e.target.value;
+    renderBookmarks();
+  });
+  document.getElementById('typeFilter').addEventListener('change', (e) => {
+    state.typeFilter = e.target.value;
+    renderBookmarks();
+  });
+
+  // Footer
+  document.getElementById('exportBtn').addEventListener('click', () => exportBookmarks('json'));
+  document.getElementById('manageBtn').addEventListener('click', () => openPanel('manageOverlay'));
+
+  // Settings
+  document.getElementById('settingsBtn').addEventListener('click', () => openPanel('settingsOverlay'));
+  document.getElementById('panelSyncBtn').addEventListener('click', () => { closeAllPanels(); startSync(); });
+  document.getElementById('exportJson').addEventListener('click', () => { closeAllPanels(); exportBookmarks('json'); });
+  document.getElementById('exportCsv').addEventListener('click', () => { closeAllPanels(); exportBookmarks('csv'); });
+
+  // Theme toggle
+  document.getElementById('themeToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('.theme-btn');
+    if (!btn) return;
+    const theme = btn.dataset.theme;
+    applyTheme(theme);
+    saveSettings({ theme });
+  });
+
+  // Accent presets
+  document.getElementById('accentPresets').addEventListener('click', (e) => {
+    const swatch = e.target.closest('.accent-swatch');
+    if (!swatch) return;
+    const color = swatch.dataset.color;
+    applyAccent(color);
+    saveSettings({ accent: color });
+  });
+
+  // Custom accent color picker
+  document.getElementById('accentCustom').addEventListener('input', (e) => {
+    applyAccent(e.target.value);
+    saveSettings({ accent: e.target.value });
+  });
+
+  // Collections panel
+  document.getElementById('addCategoryBtn').addEventListener('click', () => openCategoryModal());
+  document.getElementById('recategorizeBtn').addEventListener('click', recategorizeAll);
+
+  // Category modal
+  document.getElementById('saveCategoryBtn').addEventListener('click', saveCategory);
+
+  // Close buttons (panel + modal)
+  document.querySelectorAll('[data-close-panel]').forEach(btn => {
+    btn.addEventListener('click', () => closePanel(btn.dataset.closePanel));
+  });
+  document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.dataset.close));
+  });
+  document.querySelectorAll('.modal').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+  });
+  document.querySelectorAll('.panel-overlay').forEach(p => {
+    p.addEventListener('click', e => { if (e.target === p) closePanel(p.id); });
+  });
+
+  // Color presets
+  document.querySelectorAll('.color-preset').forEach(p => {
+    p.addEventListener('click', e => {
+      const color = e.currentTarget.dataset.color;
+      const input = e.currentTarget.closest('.color-picker').querySelector('input[type="color"]');
+      input.value = color;
+      updateColorPresets(input);
+    });
+  });
+  document.getElementById('categoryColor').addEventListener('input', e => updateColorPresets(e.target));
+}
+
+// ── Data ─────────────────────────────────────────────────────
+async function loadData() {
+  const [br, cr, tr] = await Promise.all([
+    send({ action: 'GET_BOOKMARKS', data: {} }),
+    send({ action: 'GET_CATEGORIES', data: {} }),
+    send({ action: 'GET_TAGS', data: {} }),
+  ]);
+  state.bookmarks  = br.bookmarks  || [];
+  state.categories = cr.categories || [];
+  state.tags       = tr.tags       || [];
+}
+
+// ── Render ───────────────────────────────────────────────────
+function render() {
+  renderPills();
+  renderTagFilter();
+  renderBookmarks();
+  renderCategoriesPanel();
+  renderFooter();
+}
+
+function renderPills() {
+  const row = document.getElementById('pillsRow');
+  const pills = [
+    `<button class="pill ${state.activeCategory === '' ? 'active' : ''}" data-category="">All</button>`,
+    ...state.categories.map(c =>
+      `<button class="pill ${state.activeCategory === c.id ? 'active' : ''}" data-category="${c.id}">${escapeHtml(c.name)}</button>`
+    ),
+    `<button class="pill ${state.activeCategory === 'uncategorized' ? 'active' : ''}" data-category="uncategorized">Uncategorized</button>`,
+  ];
+  row.innerHTML = pills.join('');
+  row.querySelectorAll('.pill').forEach(p => {
+    p.addEventListener('click', () => {
+      state.activeCategory = p.dataset.category;
+      renderPills();
+      renderBookmarks();
+    });
+  });
+}
+
+function renderTagFilter() {
+  const sel = document.getElementById('tagFilter');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">All tags</option>' +
+    state.tags.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+  sel.value = prev;
+}
+
+function getFilteredBookmarks() {
+  let list = state.bookmarks;
+
+  if (state.activeCategory === 'uncategorized') {
+    list = list.filter(b => !b.categoryId);
+  } else if (state.activeCategory) {
+    list = list.filter(b => b.categoryId === state.activeCategory);
+  }
+
+  if (state.tagFilter) {
+    list = list.filter(b => b.tagIds && b.tagIds.includes(state.tagFilter));
+  }
+
+  if (state.typeFilter) {
+    list = list.filter(b => b.mediaType === state.typeFilter);
+  }
+
+  if (state.searchQuery) {
+    const q = state.searchQuery.toLowerCase();
+    list = list.filter(b =>
+      (b.text && b.text.toLowerCase().includes(q)) ||
+      (b.authorName && b.authorName.toLowerCase().includes(q)) ||
+      (b.authorHandle && b.authorHandle.toLowerCase().includes(q)) ||
+      (b.hashtags && b.hashtags.some(h => h.toLowerCase().includes(q)))
+    );
+  }
+  return list;
+}
+
+function renderBookmarks() {
+  const list = getFilteredBookmarks();
+  const container = document.getElementById('bookmarksList');
+  const empty = document.getElementById('emptyBookmarks');
+
+  if (list.length === 0) {
+    container.innerHTML = '';
+    empty.style.display = 'flex';
+    return;
+  }
+  empty.style.display = 'none';
+
+  container.innerHTML = list.map(b => {
+    const cat = state.categories.find(c => c.id === b.categoryId);
+    const initials = getInitials(b.authorName);
+    const avatarColor = stringToColor(b.authorHandle || b.authorName || '');
+    const hashtags = (b.hashtags || []).slice(0, 4).map(h => `#${h}`).join(' ');
+
+    const mediaIcon = { photo: '🖼', video: '▶', thread: '🧵', post: '' }[b.mediaType] || '';
+
+    return `
+      <div class="bookmark-item" data-id="${b.id}">
+        <div class="bookmark-avatar" style="background:${avatarColor}">
+          ${b.authorAvatar
+            ? `<img src="${b.authorAvatar}" alt="${escapeHtml(b.authorName)}" onerror="this.parentElement.innerHTML='${initials}'">`
+            : initials}
+        </div>
+        <div class="bookmark-body">
+          <div class="bookmark-top">
+            <div class="bookmark-author-wrap">
+              <span class="bookmark-author">${escapeHtml(b.authorName)}</span>
+              <span class="bookmark-handle">@${escapeHtml(b.authorHandle)}</span>
+            </div>
+            ${cat ? `<span class="bookmark-badge" style="color:${cat.color}">${escapeHtml(cat.name)}</span>` : ''}
+          </div>
+          <p class="bookmark-text">${escapeHtml(b.text)}</p>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            ${hashtags ? `<div class="bookmark-hashtags">${escapeHtml(hashtags)}</div>` : ''}
+            ${mediaIcon ? `<span class="media-badge">${mediaIcon} ${b.mediaType}</span>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.bookmark-item').forEach(item => {
+    item.addEventListener('click', () => openBookmarkDetail(item.dataset.id));
+  });
+}
+
+function renderCategoriesPanel() {
+  const list = document.getElementById('categoriesList');
+  if (!list) return;
+  if (state.categories.length === 0) {
+    list.innerHTML = '<p style="font-size:12px;color:var(--text-3);padding:8px 0">No collections yet</p>';
+    return;
+  }
+  list.innerHTML = state.categories.map(cat => {
+    const count = state.bookmarks.filter(b => b.categoryId === cat.id).length;
+    const kwText = (cat.keywords || []).join(', ');
+    return `
+      <div class="category-item" data-id="${cat.id}">
+        <div class="category-info" style="flex-direction:column;align-items:flex-start;gap:2px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="category-dot" style="background:${cat.color}"></div>
+            <span class="category-name">${escapeHtml(cat.name)}</span>
+            <span class="category-count">${count}</span>
+          </div>
+          ${kwText ? `<div class="category-keywords">${escapeHtml(kwText)}</div>` : ''}
+        </div>
+        <div class="category-actions">
+          <button class="btn btn-sm btn-secondary edit-cat">Edit</button>
+          <button class="btn btn-sm btn-danger del-cat">Del</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('.category-item').forEach(item => {
+    item.querySelector('.edit-cat').addEventListener('click', () => editCategory(item.dataset.id));
+    item.querySelector('.del-cat').addEventListener('click', () => deleteCategory(item.dataset.id));
+  });
+}
+
+function renderFooter() {
+  const total = state.bookmarks.length;
+  const cols  = state.categories.length;
+  document.getElementById('footerStats').textContent =
+    `${total} bookmark${total !== 1 ? 's' : ''} · ${cols} collection${cols !== 1 ? 's' : ''}`;
+}
+
+// ── Search ───────────────────────────────────────────────────
+async function handleSearch(e) {
+  state.searchQuery = e.target.value;
+  document.getElementById('searchClear').style.display = state.searchQuery ? 'flex' : 'none';
+  renderBookmarks();
+}
+
+function clearSearch() {
+  state.searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  renderBookmarks();
+}
+
+// ── Sync ─────────────────────────────────────────────────────
 async function startSync() {
   if (isSyncing) return;
-
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => []);
-  if (!tab?.url) {
-    showToast('Could not access the current tab', 'error');
-    return;
+  if (!tab?.url) { showToast('Could not access current tab', 'error'); return; }
+  if (!tab.url.includes('x.com') && !tab.url.includes('twitter.com')) {
+    showToast('Open x.com first, then sync', 'warning'); return;
   }
-
-  const isOnX = tab.url.includes('x.com') || tab.url.includes('twitter.com');
-  if (!isOnX) {
-    showToast('Open x.com in a tab first, then click Sync', 'warning');
-    return;
-  }
-
   try {
     await chrome.tabs.sendMessage(tab.id, { action: 'START_AUTO_SCROLL' });
   } catch (_) {
-    showToast('Could not reach x.com tab — try refreshing it', 'error');
-    return;
+    showToast('Could not reach x.com — try refreshing it', 'error'); return;
   }
-
   isSyncing = true;
-  setSyncBanner(true);
-
-  // Refresh bookmark count every second while scrolling
+  setSyncOverlay(true);
   syncPollInterval = setInterval(async () => {
-    const result = await chrome.storage.local.get('bookmarks');
-    const count = (result.bookmarks || []).length;
+    const r = await chrome.storage.local.get('bookmarks');
+    const count = (r.bookmarks || []).length;
     const el = document.getElementById('syncCount');
-    if (el) el.textContent = ` — ${count} captured`;
+    if (el) el.textContent = `${count} bookmark${count !== 1 ? 's' : ''} captured so far`;
   }, 1000);
 }
 
 function stopSync() {
   clearInterval(syncPollInterval);
   isSyncing = false;
-  setSyncBanner(false);
-  loadData().then(() => render());
+  setSyncOverlay(false);
+  loadData().then(render);
 }
 
-function setSyncBanner(visible) {
-  document.getElementById('syncBanner').classList.toggle('active', visible);
-  document.getElementById('syncBtn').disabled = visible;
-  document.getElementById('syncBtn').classList.toggle('spinning', visible);
+function setSyncOverlay(visible) {
+  document.getElementById('syncOverlay').classList.toggle('active', visible);
+  const btn = document.getElementById('syncBtn');
+  btn.disabled = visible;
+  btn.classList.toggle('spinning', visible);
 }
 
-// State
-let state = {
-  bookmarks: [],
-  categories: [],
-  tags: [],
-  activeTab: 'bookmarks',
-  searchQuery: '',
-  categoryFilter: '',
-  tagFilter: '',
-  editingCategory: null,
-  editingTag: null,
-  selectedBookmark: null
-};
+// ── Category CRUD ─────────────────────────────────────────────
+function openCategoryModal(cat = null) {
+  state.editingCategory = cat;
+  document.getElementById('categoryModalTitle').textContent = cat ? 'Edit Collection' : 'Add Collection';
+  document.getElementById('categoryName').value = cat ? cat.name : '';
+  document.getElementById('categoryKeywords').value = cat ? (cat.keywords || []).join(', ') : '';
+  const colorInput = document.getElementById('categoryColor');
+  colorInput.value = cat ? cat.color : '#f97316';
+  updateColorPresets(colorInput);
+  openModal('categoryModal');
+}
 
-// DOM Elements
-const elements = {};
+async function saveCategory() {
+  const name = document.getElementById('categoryName').value.trim();
+  const color = document.getElementById('categoryColor').value;
+  const keywords = document.getElementById('categoryKeywords').value
+    .split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+  if (!name) { showToast('Enter a collection name', 'warning'); return; }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', init);
-
-async function init() {
-  cacheElements();
-  attachEventListeners();
+  if (state.editingCategory) {
+    await send({ action: 'UPDATE_CATEGORY', data: { id: state.editingCategory.id, updates: { name, color, keywords } } });
+    showToast('Collection updated', 'success');
+  } else {
+    await send({ action: 'ADD_CATEGORY', data: { category: { name, color, keywords } } });
+    showToast('Collection created', 'success');
+  }
+  closeModal('categoryModal');
   await loadData();
   render();
 }
 
-/**
- * Cache DOM elements
- */
-function cacheElements() {
-  elements.searchInput = document.getElementById('searchInput');
-  elements.searchClear = document.getElementById('searchClear');
-  elements.categoryFilter = document.getElementById('categoryFilter');
-  elements.tagFilter = document.getElementById('tagFilter');
-  elements.bookmarksList = document.getElementById('bookmarksList');
-  elements.categoriesList = document.getElementById('categoriesList');
-  elements.tagsList = document.getElementById('tagsList');
-  elements.emptyBookmarks = document.getElementById('emptyBookmarks');
-  elements.emptyCategories = document.getElementById('emptyCategories');
-  elements.emptyTags = document.getElementById('emptyTags');
-  elements.bookmarkCount = document.getElementById('bookmarkCount');
-  elements.categoryCount = document.getElementById('categoryCount');
-  elements.tagCount = document.getElementById('tagCount');
-  elements.toastContainer = document.getElementById('toastContainer');
-  
-  // Modals
-  elements.categoryModal = document.getElementById('categoryModal');
-  elements.tagModal = document.getElementById('tagModal');
-  elements.exportModal = document.getElementById('exportModal');
-  elements.bookmarkDetailModal = document.getElementById('bookmarkDetailModal');
-  
-  // Category form
-  elements.categoryName = document.getElementById('categoryName');
-  elements.categoryColor = document.getElementById('categoryColor');
-  elements.categoryModalTitle = document.getElementById('categoryModalTitle');
-  elements.saveCategoryBtn = document.getElementById('saveCategoryBtn');
-  
-  // Tag form
-  elements.tagName = document.getElementById('tagName');
-  elements.tagColor = document.getElementById('tagColor');
-  elements.tagModalTitle = document.getElementById('tagModalTitle');
-  elements.saveTagBtn = document.getElementById('saveTagBtn');
-  
-  // Bookmark detail
-  elements.bookmarkDetailContent = document.getElementById('bookmarkDetailContent');
-}
-
-/**
- * Attach event listeners
- */
-function attachEventListeners() {
-  // Tabs
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-  });
-  
-  // Search
-  elements.searchInput.addEventListener('input', handleSearch);
-  elements.searchClear.addEventListener('click', clearSearch);
-  
-  // Filters
-  elements.categoryFilter.addEventListener('change', handleCategoryFilter);
-  elements.tagFilter.addEventListener('change', handleTagFilter);
-  
-  // Sync
-  document.getElementById('syncBtn').addEventListener('click', startSync);
-  document.getElementById('stopSyncBtn').addEventListener('click', stopSync);
-  document.getElementById('emptySyncBtn')?.addEventListener('click', startSync);
-
-  // Export
-  document.getElementById('exportBtn').addEventListener('click', () => openModal('exportModal'));
-  document.getElementById('exportJson').addEventListener('click', () => exportBookmarks('json'));
-  document.getElementById('exportCsv').addEventListener('click', () => exportBookmarks('csv'));
-  
-  // Category modal
-  document.getElementById('addCategoryBtn').addEventListener('click', () => openCategoryModal());
-  elements.saveCategoryBtn.addEventListener('click', saveCategory);
-  
-  // Tag modal
-  document.getElementById('addTagBtn').addEventListener('click', () => openTagModal());
-  elements.saveTagBtn.addEventListener('click', saveTag);
-  
-  // Color presets
-  document.querySelectorAll('.color-preset').forEach(preset => {
-    preset.addEventListener('click', (e) => {
-      const color = e.target.dataset.color;
-      const input = e.target.closest('.color-picker').querySelector('input[type="color"]');
-      input.value = color;
-      updateColorPresets(input);
-    });
-  });
-  
-  // Modal close buttons
-  document.querySelectorAll('[data-close]').forEach(btn => {
-    btn.addEventListener('click', () => closeModal(btn.dataset.close));
-  });
-  
-  // Close modals on backdrop click
-  document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeModal(modal.id);
-    });
-  });
-  
-  // Color picker change
-  elements.categoryColor.addEventListener('input', () => updateColorPresets(elements.categoryColor));
-  elements.tagColor.addEventListener('input', () => updateColorPresets(elements.tagColor));
-}
-
-/**
- * Update color presets active state
- */
-function updateColorPresets(input) {
-  const presets = input.closest('.color-picker').querySelectorAll('.color-preset');
-  presets.forEach(preset => {
-    preset.classList.toggle('active', preset.dataset.color === input.value);
-  });
-}
-
-/**
- * Load data from background script
- */
-async function loadData() {
-  try {
-    const [bookmarksResult, categoriesResult, tagsResult] = await Promise.all([
-      sendMessage({ action: 'GET_BOOKMARKS', data: {} }),
-      sendMessage({ action: 'GET_CATEGORIES', data: {} }),
-      sendMessage({ action: 'GET_TAGS', data: {} })
-    ]);
-    
-    state.bookmarks = bookmarksResult.bookmarks || [];
-    state.categories = categoriesResult.categories || [];
-    state.tags = tagsResult.tags || [];
-  } catch (error) {
-    console.error('Error loading data:', error);
-    showToast('Failed to load data', 'error');
-  }
-}
-
-/**
- * Send message to background script
- */
-function sendMessage(message) {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(message, (response) => {
-      if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
-      } else {
-        resolve(response || {});
-      }
-    });
-  });
-}
-
-/**
- * Switch tabs
- */
-function switchTab(tabId) {
-  state.activeTab = tabId;
-  
-  // Update tab buttons
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.tab === tabId);
-  });
-  
-  // Update tab content
-  document.querySelectorAll('.tab-content').forEach(content => {
-    content.classList.toggle('active', content.id === `tab-${tabId}`);
-  });
-}
-
-/**
- * Handle search
- */
-async function handleSearch(e) {
-  const query = e.target.value;
-  state.searchQuery = query;
-  
-  elements.searchClear.style.display = query ? 'flex' : 'none';
-  
-  if (query) {
-    const result = await sendMessage({ action: 'SEARCH_BOOKMARKS', data: { query } });
-    state.bookmarks = result.bookmarks || [];
-  } else {
-    await loadData();
-  }
-  
-  renderBookmarks();
-}
-
-/**
- * Clear search
- */
-async function clearSearch() {
-  elements.searchInput.value = '';
-  state.searchQuery = '';
-  elements.searchClear.style.display = 'none';
-  await loadData();
-  renderBookmarks();
-}
-
-/**
- * Handle category filter
- */
-async function handleCategoryFilter(e) {
-  state.categoryFilter = e.target.value;
-  await filterBookmarks();
-}
-
-/**
- * Handle tag filter
- */
-async function handleTagFilter(e) {
-  state.tagFilter = e.target.value;
-  await filterBookmarks();
-}
-
-/**
- * Filter bookmarks
- */
-async function filterBookmarks() {
-  const filters = {};
-  if (state.categoryFilter) filters.categoryId = state.categoryFilter;
-  if (state.tagFilter) filters.tagId = state.tagFilter;
-  
-  const result = await sendMessage({ action: 'GET_BOOKMARKS', data: filters });
-  state.bookmarks = result.bookmarks || [];
-  renderBookmarks();
-}
-
-/**
- * Render all
- */
-function render() {
-  renderFilters();
-  renderBookmarks();
-  renderCategories();
-  renderTags();
-  renderStats();
-}
-
-/**
- * Render filters
- */
-function renderFilters() {
-  // Category filter
-  elements.categoryFilter.innerHTML = '<option value="">All Categories</option>';
-  state.categories.forEach(cat => {
-    elements.categoryFilter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
-  });
-  
-  // Tag filter
-  elements.tagFilter.innerHTML = '<option value="">All Tags</option>';
-  state.tags.forEach(tag => {
-    elements.tagFilter.innerHTML += `<option value="${tag.id}">${tag.name}</option>`;
-  });
-}
-
-/**
- * Render bookmarks
- */
-function renderBookmarks() {
-  if (state.bookmarks.length === 0) {
-    elements.bookmarksList.innerHTML = '';
-    elements.emptyBookmarks.style.display = 'flex';
-    return;
-  }
-  
-  elements.emptyBookmarks.style.display = 'none';
-  
-  elements.bookmarksList.innerHTML = state.bookmarks.map(bookmark => {
-    const category = state.categories.find(c => c.id === bookmark.categoryId);
-    const tags = (bookmark.tagIds || []).map(tid => state.tags.find(t => t.id === tid)).filter(Boolean);
-    
-    return `
-      <div class="bookmark-item" data-id="${bookmark.id}" draggable="true">
-        <img class="bookmark-avatar" src="${bookmark.authorAvatar || ''}" alt="${bookmark.authorName}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23666666%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22/></svg>'">
-        <div class="bookmark-content">
-          <div class="bookmark-header">
-            <span class="bookmark-author">${escapeHtml(bookmark.authorName)}</span>
-            <span class="bookmark-handle">@${escapeHtml(bookmark.authorHandle)}</span>
-          </div>
-          <p class="bookmark-text">${escapeHtml(bookmark.text)}</p>
-          <div class="bookmark-meta">
-            <span class="bookmark-date">${formatDate(bookmark.dateBookmarked)}</span>
-            ${category ? `<span class="bookmark-category" style="background: ${category.color}20; color: ${category.color}">${escapeHtml(category.name)}</span>` : ''}
-            ${tags.length > 0 ? `
-              <div class="bookmark-tags">
-                ${tags.map(tag => `<span class="bookmark-tag" style="background: ${tag.color}20; color: ${tag.color}">${escapeHtml(tag.name)}</span>`).join('')}
-              </div>
-            ` : ''}
-          </div>
-          ${bookmark.media && bookmark.media.length > 0 ? `
-            <div class="bookmark-media">
-              ${bookmark.media.slice(0, 4).map(m => `<img src="${m.url}" alt="Media">`).join('')}
-            </div>
-          ` : ''}
-        </div>
-        <div class="bookmark-actions">
-          <button class="bookmark-action-btn edit" title="Edit">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-          <button class="bookmark-action-btn delete" title="Delete">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
-  
-  document.querySelectorAll('.bookmark-item').forEach(item => {
-    item.addEventListener('click', () => openBookmarkDetail(item.dataset.id));
-    item.querySelector('.bookmark-action-btn.edit').addEventListener('click', (e) => {
-      e.stopPropagation();
-      openBookmarkDetail(item.dataset.id);
-    });
-    item.querySelector('.bookmark-action-btn.delete').addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteBookmark(item.dataset.id);
-    });
-    item.addEventListener('dragstart', handleDragStart);
-    item.addEventListener('dragend', handleDragEnd);
-    item.addEventListener('dragover', handleDragOver);
-    item.addEventListener('drop', handleDrop);
-  });
-}
-
-/**
- * Render categories
- */
-function renderCategories() {
-  if (state.categories.length === 0) {
-    elements.categoriesList.innerHTML = '';
-    elements.emptyCategories.style.display = 'flex';
-    return;
-  }
-  
-  elements.emptyCategories.style.display = 'none';
-  
-  elements.categoriesList.innerHTML = state.categories.map(cat => {
-    const count = state.bookmarks.filter(b => b.categoryId === cat.id).length;
-
-    return `
-      <div class="category-item" data-id="${cat.id}">
-        <div class="category-info">
-          <div class="category-color" style="background: ${cat.color}"></div>
-          <span class="category-name">${escapeHtml(cat.name)}</span>
-          <span class="category-count">${count} bookmark${count !== 1 ? 's' : ''}</span>
-        </div>
-        <div class="category-actions">
-          <button class="btn btn-sm btn-secondary edit">Edit</button>
-          <button class="btn btn-sm btn-secondary delete">Delete</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  document.querySelectorAll('.category-item').forEach(item => {
-    item.querySelector('.edit').addEventListener('click', () => editCategory(item.dataset.id));
-    item.querySelector('.delete').addEventListener('click', () => deleteCategory(item.dataset.id));
-  });
-}
-
-/**
- * Render tags
- */
-function renderTags() {
-  if (state.tags.length === 0) {
-    elements.tagsList.innerHTML = '';
-    elements.emptyTags.style.display = 'flex';
-    return;
-  }
-  
-  elements.emptyTags.style.display = 'none';
-  
-  elements.tagsList.innerHTML = state.tags.map(tag => {
-    const count = state.bookmarks.filter(b => b.tagIds && b.tagIds.includes(tag.id)).length;
-
-    return `
-      <div class="tag-item" data-id="${tag.id}">
-        <div class="tag-color" style="background: ${tag.color}"></div>
-        <span class="tag-name">${escapeHtml(tag.name)}</span>
-        <span class="tag-count">${count}</span>
-        <button class="tag-delete">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-    `;
-  }).join('');
-
-  document.querySelectorAll('.tag-item').forEach(item => {
-    item.querySelector('.tag-delete').addEventListener('click', () => deleteTag(item.dataset.id));
-  });
-}
-
-/**
- * Render stats
- */
-function renderStats() {
-  elements.bookmarkCount.textContent = `${state.bookmarks.length} bookmark${state.bookmarks.length !== 1 ? 's' : ''}`;
-  elements.categoryCount.textContent = `${state.categories.length} categor${state.categories.length !== 1 ? 'ies' : 'y'}`;
-  elements.tagCount.textContent = `${state.tags.length} tag${state.tags.length !== 1 ? 's' : ''}`;
-}
-
-/**
- * Open category modal
- */
-function openCategoryModal(category = null) {
-  state.editingCategory = category;
-  elements.categoryModalTitle.textContent = category ? 'Edit Category' : 'Add Category';
-  elements.categoryName.value = category ? category.name : '';
-  elements.categoryColor.value = category ? category.color : '#6366f1';
-  updateColorPresets(elements.categoryColor);
-  openModal('categoryModal');
-}
-
-/**
- * Save category
- */
-async function saveCategory() {
-  const name = elements.categoryName.value.trim();
-  const color = elements.categoryColor.value;
-  
-  if (!name) {
-    showToast('Please enter a category name', 'warning');
-    return;
-  }
-  
-  try {
-    if (state.editingCategory) {
-      await sendMessage({
-        action: 'UPDATE_CATEGORY',
-        data: { id: state.editingCategory.id, updates: { name, color } }
-      });
-      showToast('Category updated', 'success');
-    } else {
-      await sendMessage({
-        action: 'ADD_CATEGORY',
-        data: { category: { name, color } }
-      });
-      showToast('Category created', 'success');
-    }
-    
-    closeModal('categoryModal');
-    await loadData();
-    render();
-  } catch (error) {
-    showToast('Failed to save category', 'error');
-  }
-}
-
-/**
- * Edit category
- */
 function editCategory(id) {
-  const category = state.categories.find(c => c.id === id);
-  if (category) {
-    openCategoryModal(category);
-  }
+  const cat = state.categories.find(c => c.id === id);
+  if (cat) openCategoryModal(cat);
 }
 
-/**
- * Delete category
- */
 async function deleteCategory(id) {
-  if (!confirm('Are you sure you want to delete this category?')) return;
-  
-  try {
-    await sendMessage({ action: 'DELETE_CATEGORY', data: { id } });
-    showToast('Category deleted', 'success');
-    await loadData();
-    render();
-  } catch (error) {
-    showToast('Failed to delete category', 'error');
-  }
+  if (!confirm('Delete this collection?')) return;
+  await send({ action: 'DELETE_CATEGORY', data: { id } });
+  if (state.activeCategory === id) state.activeCategory = '';
+  showToast('Collection deleted', 'success');
+  await loadData();
+  render();
 }
 
-/**
- * Open tag modal
- */
-function openTagModal(tag = null) {
-  state.editingTag = tag;
-  elements.tagModalTitle.textContent = tag ? 'Edit Tag' : 'Add Tag';
-  elements.tagName.value = tag ? tag.name : '';
-  elements.tagColor.value = tag ? tag.color : '#10b981';
-  updateColorPresets(elements.tagColor);
-  openModal('tagModal');
+async function recategorizeAll() {
+  const r = await send({ action: 'RECATEGORIZE_BOOKMARKS', data: {} });
+  await loadData();
+  render();
+  showToast(`Re-sorted — ${r.changed} bookmark${r.changed !== 1 ? 's' : ''} updated`, 'success');
 }
 
-/**
- * Save tag
- */
-async function saveTag() {
-  const name = elements.tagName.value.trim();
-  const color = elements.tagColor.value;
-  
-  if (!name) {
-    showToast('Please enter a tag name', 'warning');
-    return;
-  }
-  
-  try {
-    if (state.editingTag) {
-      await sendMessage({
-        action: 'UPDATE_TAG',
-        data: { id: state.editingTag.id, updates: { name, color } }
-      });
-      showToast('Tag updated', 'success');
-    } else {
-      await sendMessage({
-        action: 'ADD_TAG',
-        data: { tag: { name, color } }
-      });
-      showToast('Tag created', 'success');
-    }
-    
-    closeModal('tagModal');
-    await loadData();
-    render();
-  } catch (error) {
-    showToast('Failed to save tag', 'error');
-  }
-}
-
-/**
- * Delete tag
- */
-async function deleteTag(id) {
-  if (!confirm('Are you sure you want to delete this tag?')) return;
-  
-  try {
-    await sendMessage({ action: 'DELETE_TAG', data: { id } });
-    showToast('Tag deleted', 'success');
-    await loadData();
-    render();
-  } catch (error) {
-    showToast('Failed to delete tag', 'error');
-  }
-}
-
-/**
- * Delete bookmark
- */
-async function deleteBookmark(id) {
-  if (!confirm('Are you sure you want to delete this bookmark?')) return;
-  
-  try {
-    await sendMessage({ action: 'DELETE_BOOKMARK', data: { id } });
-    showToast('Bookmark deleted', 'success');
-    await loadData();
-    render();
-  } catch (error) {
-    showToast('Failed to delete bookmark', 'error');
-  }
-}
-
-/**
- * Open bookmark detail modal
- */
+// ── Bookmark detail ───────────────────────────────────────────
 function openBookmarkDetail(id) {
-  const bookmark = state.bookmarks.find(b => b.id === id);
-  if (!bookmark) return;
-  
-  state.selectedBookmark = bookmark;
-  
-  const category = state.categories.find(c => c.id === bookmark.categoryId);
-  const tags = (bookmark.tagIds || []).map(tid => state.tags.find(t => t.id === tid)).filter(Boolean);
-  
-  elements.bookmarkDetailContent.innerHTML = `
-    <div class="bookmark-detail">
-      <div class="bookmark-detail-header">
-        <img class="bookmark-detail-avatar" src="${bookmark.authorAvatar || ''}" alt="${bookmark.authorName}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23666666%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22/></svg>'">
-        <div class="bookmark-detail-info">
-          <div class="bookmark-detail-author">${escapeHtml(bookmark.authorName)}</div>
-          <div class="bookmark-detail-handle">@${escapeHtml(bookmark.authorHandle)}</div>
-        </div>
+  const b = state.bookmarks.find(x => x.id === id);
+  if (!b) return;
+
+  const avatarColor = stringToColor(b.authorHandle || b.authorName || '');
+  const initials = getInitials(b.authorName);
+
+  document.getElementById('bookmarkDetailContent').innerHTML = `
+    <div class="detail-header">
+      <div class="detail-avatar" style="background:${avatarColor}">
+        ${b.authorAvatar
+          ? `<img src="${b.authorAvatar}" alt="" onerror="this.parentElement.innerHTML='${initials}'">`
+          : initials}
       </div>
-      
-      <p class="bookmark-detail-text">${escapeHtml(bookmark.text)}</p>
-      
-      <div class="bookmark-detail-meta">
-        <a class="bookmark-detail-link" href="${bookmark.tweetUrl}" target="_blank">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-            <polyline points="15 3 21 3 21 9"/>
-            <line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-          View on X
-        </a>
-        <span class="bookmark-date">Saved: ${formatDate(bookmark.dateBookmarked)}</span>
-      </div>
-      
-      <div class="bookmark-detail-section">
-        <h4>Category</h4>
-        <div class="bookmark-detail-categories">
-          <select class="filter-select" id="bookmarkCategorySelect">
-            <option value="">No Category</option>
-            ${state.categories.map(cat => `
-              <option value="${cat.id}" ${bookmark.categoryId === cat.id ? 'selected' : ''}>${escapeHtml(cat.name)}</option>
-            `).join('')}
-          </select>
-        </div>
-      </div>
-      
-      <div class="bookmark-detail-section">
-        <h4>Tags</h4>
-        <div class="bookmark-detail-tags">
-          ${state.tags.map(tag => {
-            const isAssigned = bookmark.tagIds && bookmark.tagIds.includes(tag.id);
-            return `
-              <span class="bookmark-tag" data-tag-id="${tag.id}" style="background: ${tag.color}20; color: ${tag.color}; cursor: pointer; ${isAssigned ? 'border: 1px solid ' + tag.color : ''}">
-                ${escapeHtml(tag.name)}
-              </span>
-            `;
-          }).join('')}
-          ${state.tags.length === 0 ? '<span style="color: var(--text-tertiary)">No tags available</span>' : ''}
-        </div>
+      <div>
+        <div class="detail-author">${escapeHtml(b.authorName)}</div>
+        <div class="detail-handle">@${escapeHtml(b.authorHandle)}</div>
       </div>
     </div>
+    <p class="detail-text">${escapeHtml(b.text)}</p>
+    <div>
+      <a class="detail-link" href="${b.tweetUrl}" target="_blank">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+        View on X
+      </a>
+    </div>
+    <div class="detail-section">
+      <h4>Collection</h4>
+      <select class="filter-select" id="detailCategorySelect">
+        <option value="">None</option>
+        ${state.categories.map(c => `<option value="${c.id}" ${b.categoryId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+      </select>
+    </div>
+    ${state.tags.length > 0 ? `
+    <div class="detail-section">
+      <h4>Tags</h4>
+      <div class="tag-chips">
+        ${state.tags.map(t => {
+          const on = b.tagIds && b.tagIds.includes(t.id);
+          return `<span class="tag-chip" data-tag-id="${t.id}" style="background:${t.color}22;color:${t.color};${on ? `border-color:${t.color}` : ''}">${escapeHtml(t.name)}</span>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
   `;
-  
+
   openModal('bookmarkDetailModal');
 
-  document.getElementById('bookmarkCategorySelect').addEventListener('change', function () {
-    assignCategory(bookmark.id, this.value);
+  document.getElementById('detailCategorySelect').addEventListener('change', async function () {
+    await send({ action: 'ASSIGN_CATEGORY', data: { bookmarkId: b.id, categoryId: this.value || null } });
+    await loadData();
+    render();
+    openBookmarkDetail(b.id);
   });
-  document.querySelectorAll('.bookmark-detail-tags .bookmark-tag[data-tag-id]').forEach(span => {
-    span.addEventListener('click', () => toggleTag(bookmark.id, span.dataset.tagId));
-  });
-}
 
-/**
- * Assign category to bookmark
- */
-async function assignCategory(bookmarkId, categoryId) {
-  try {
-    await sendMessage({
-      action: 'ASSIGN_CATEGORY',
-      data: { bookmarkId, categoryId: categoryId || null }
+  document.querySelectorAll('.tag-chip[data-tag-id]').forEach(chip => {
+    chip.addEventListener('click', async () => {
+      const tagId = chip.dataset.tagId;
+      const hasTag = b.tagIds && b.tagIds.includes(tagId);
+      await send({ action: hasTag ? 'REMOVE_TAG_FROM_BOOKMARK' : 'ADD_TAG_TO_BOOKMARK', data: { bookmarkId: b.id, tagId } });
+      await loadData();
+      render();
+      openBookmarkDetail(b.id);
     });
-    showToast('Category assigned', 'success');
-    await loadData();
-    render();
-  } catch (error) {
-    showToast('Failed to assign category', 'error');
-  }
+  });
 }
 
-/**
- * Toggle tag on bookmark
- */
-async function toggleTag(bookmarkId, tagId) {
-  const bookmark = state.bookmarks.find(b => b.id === bookmarkId);
-  if (!bookmark) return;
-  
-  const hasTag = bookmark.tagIds && bookmark.tagIds.includes(tagId);
-  
-  try {
-    if (hasTag) {
-      await sendMessage({
-        action: 'REMOVE_TAG_FROM_BOOKMARK',
-        data: { bookmarkId, tagId }
-      });
-    } else {
-      await sendMessage({
-        action: 'ADD_TAG_TO_BOOKMARK',
-        data: { bookmarkId, tagId }
-      });
-    }
-    
-    await loadData();
-    render();
-    
-    // Reopen detail modal to show updated state
-    openBookmarkDetail(bookmarkId);
-  } catch (error) {
-    showToast('Failed to update tag', 'error');
-  }
-}
-
-/**
- * Export bookmarks
- */
+// ── Export ────────────────────────────────────────────────────
 async function exportBookmarks(format) {
-  try {
-    const result = await sendMessage({ action: 'EXPORT_BOOKMARKS', data: { format } });
-    
-    if (!result.success) {
-      throw new Error(result.error);
-    }
-    
-    // Create download
-    const blob = new Blob([result.data], { type: format === 'json' ? 'application/json' : 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = result.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    closeModal('exportModal');
-    showToast(`Exported as ${format.toUpperCase()}`, 'success');
-  } catch (error) {
-    showToast('Failed to export', 'error');
-  }
+  const r = await send({ action: 'EXPORT_BOOKMARKS', data: { format } });
+  if (!r.success) { showToast('Export failed', 'error'); return; }
+  const blob = new Blob([r.data], { type: format === 'json' ? 'application/json' : 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: r.filename });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`Exported as ${format.toUpperCase()}`, 'success');
 }
 
-// Drag and drop handlers
-let draggedItem = null;
+// ── Panels & Modals ───────────────────────────────────────────
+function openPanel(id)  { document.getElementById(id).classList.add('active'); }
+function closePanel(id) { document.getElementById(id).classList.remove('active'); }
+function closeAllPanels() {
+  document.querySelectorAll('.panel-overlay').forEach(p => p.classList.remove('active'));
+}
+function openModal(id)  { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-function handleDragStart(e) {
-  draggedItem = e.target;
-  e.target.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
+// ── Color presets ─────────────────────────────────────────────
+function updateColorPresets(input) {
+  input.closest('.color-picker').querySelectorAll('.color-preset').forEach(p => {
+    p.classList.toggle('active', p.dataset.color === input.value);
+  });
 }
 
-function handleDragEnd(e) {
-  e.target.classList.remove('dragging');
-  draggedItem = null;
-}
-
-function handleDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-}
-
-async function handleDrop(e) {
-  e.preventDefault();
-  
-  if (!draggedItem || draggedItem === e.target) return;
-  
-  const bookmarkId = draggedItem.dataset.id;
-  const targetId = e.target.closest('.bookmark-item')?.dataset.id;
-  
-  if (!targetId || bookmarkId === targetId) return;
-  
-  // For now, just reorder - could be enhanced to assign to category
-  showToast('Bookmark reordered', 'success');
-}
-
-// Modal helpers
-function openModal(modalId) {
-  document.getElementById(modalId).classList.add('active');
-}
-
-function closeModal(modalId) {
-  document.getElementById(modalId).classList.remove('active');
-}
-
-// Toast
+// ── Toast ─────────────────────────────────────────────────────
 function showToast(message, type = 'success') {
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.textContent = message;
-  
-  elements.toastContainer.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.remove();
-  }, 3000);
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = message;
+  document.getElementById('toastContainer').appendChild(t);
+  setTimeout(() => t.remove(), 3000);
 }
 
-// Utility functions
+// ── Helpers ───────────────────────────────────────────────────
+function send(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, r => {
+      chrome.runtime.lastError ? reject(chrome.runtime.lastError) : resolve(r || {});
+    });
+  });
+}
+
 function escapeHtml(text) {
   if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
 }
 
-function formatDate(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diff = now - date;
-  
-  // Less than 24 hours
-  if (diff < 86400000) {
-    const hours = Math.floor(diff / 3600000);
-    if (hours < 1) {
-      const minutes = Math.floor(diff / 60000);
-      return minutes <= 1 ? 'Just now' : `${minutes}m ago`;
-    }
-    return `${hours}h ago`;
-  }
-  
-  // Less than 7 days
-  if (diff < 604800000) {
-    const days = Math.floor(diff / 86400000);
-    return `${days}d ago`;
-  }
-  
-  // Otherwise show date
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function getInitials(name) {
+  if (!name) return '?';
+  return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
-// Expose functions to global scope for onclick handlers
-window.editCategory = editCategory;
-window.deleteCategory = deleteCategory;
-window.deleteTag = deleteTag;
-window.deleteBookmark = deleteBookmark;
-window.openBookmarkDetail = openBookmarkDetail;
-window.assignCategory = assignCategory;
-window.toggleTag = toggleTag;
+function stringToColor(str) {
+  const palette = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#0ea5e9','#ef4444','#f97316'];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return palette[Math.abs(hash) % palette.length];
+}

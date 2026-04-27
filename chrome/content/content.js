@@ -2,6 +2,8 @@
   'use strict';
 
   let autoScrollActive = false;
+  let stopEarly = false;
+  let consecutiveZeroAdds = 0;
 
   function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -37,8 +39,10 @@
   async function performScroll() {
     let unchangedRuns = 0;
     let lastHeight = document.documentElement.scrollHeight;
+    stopEarly = false;
+    consecutiveZeroAdds = 0;
 
-    while (unchangedRuns < 4) {
+    while (unchangedRuns < 4 && !stopEarly) {
       window.scrollTo(0, document.documentElement.scrollHeight);
       await sleep(1800);
 
@@ -53,7 +57,10 @@
       chrome.runtime.sendMessage({ action: 'SCROLL_PROGRESS', data: {} }).catch(() => {});
     }
 
-    chrome.runtime.sendMessage({ action: 'SCROLL_COMPLETE', data: {} }).catch(() => {});
+    chrome.runtime.sendMessage({
+      action: 'SCROLL_COMPLETE',
+      data: { stoppedEarly: stopEarly }
+    }).catch(() => {});
   }
 
   async function startAutoScroll() {
@@ -101,14 +108,22 @@
   })();
 
   // Bridge: main-world postMessage → background
-  window.addEventListener('message', (event) => {
+  window.addEventListener('message', async (event) => {
     if (event.source !== window) return;
     if (!event.data || event.data.source !== 'bookmarkd-injected') return;
 
     const { action, bookmarks } = event.data;
     if (action === 'BOOKMARKS_CAPTURED' && bookmarks?.length > 0) {
-      chrome.runtime.sendMessage({ action: 'BOOKMARKS_CAPTURED', data: { bookmarks } })
-        .catch(() => {});
+      try {
+        const result = await chrome.runtime.sendMessage({ action: 'BOOKMARKS_CAPTURED', data: { bookmarks } });
+        // Stop scrolling early once we've hit two consecutive pages of already-synced content
+        if (result?.added === 0) {
+          consecutiveZeroAdds++;
+          if (consecutiveZeroAdds >= 2) stopEarly = true;
+        } else {
+          consecutiveZeroAdds = 0;
+        }
+      } catch (_) {}
     }
   });
 
