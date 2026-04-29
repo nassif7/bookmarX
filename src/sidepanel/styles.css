@@ -332,6 +332,25 @@ html, body {
   transition: all var(--transition);
 }
 .pill:hover { border-color: var(--accent); color: var(--accent); }
+.pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  padding: 0 4px;
+  height: 15px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 8px;
+  background: var(--bg-3);
+  color: var(--text-3);
+  margin-left: 3px;
+}
+.pill.active .pill-count {
+  background: rgba(255,255,255,.25);
+  color: inherit;
+}
 .pill.active {
   background: var(--accent);
   border-color: var(--accent);
@@ -507,6 +526,7 @@ html, body {
   font-size: 11.5px;
   color: var(--text-3);
 }
+.footer-synced { opacity: .7; }
 
 .footer-actions {
   display: flex;
@@ -660,6 +680,40 @@ html, body {
 .btn-danger { background: #ef4444; color: white; }
 .btn-danger:hover { background: #dc2626; }
 
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+.confirm-modal {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 220px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+.confirm-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 6px;
+}
+.confirm-sub {
+  font-size: 11.5px;
+  color: var(--text-3);
+  margin-bottom: 16px;
+}
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 /* ── Modal ───────────────────────────────────────── */
 .modal {
   display: none;
@@ -793,6 +847,9 @@ html, body {
   transition: background var(--transition);
 }
 .detail-link:hover { background: var(--accent); color: white; }
+.detail-link-danger { background: rgba(239,68,68,.1); color: #ef4444; }
+.detail-link-danger:hover { background: #ef4444; color: white; }
+.detail-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
 
 .filter-select {
   width: 100%;

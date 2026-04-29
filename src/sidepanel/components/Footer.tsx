@@ -3,18 +3,28 @@ import { useRef } from 'react';
 interface Props {
   bookmarkCount: number;
   categoryCount: number;
+  lastSynced: Date | null;
   onExport: () => void;
   onImport: (file: File) => void;
   onManage: () => void;
 }
 
-export default function Footer({ bookmarkCount, categoryCount, onExport, onImport, onManage }: Props) {
+function formatSynced(date: Date): string {
+  const mins = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (mins < 1) return 'synced just now';
+  if (mins < 60) return `synced ${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  return `synced ${hrs}h ago`;
+}
+
+export default function Footer({ bookmarkCount, categoryCount, lastSynced, onExport, onImport, onManage }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <footer className="footer">
       <span className="footer-stats">
         {bookmarkCount} bookmark{bookmarkCount !== 1 ? 's' : ''} · {categoryCount} collection{categoryCount !== 1 ? 's' : ''}
+        {lastSynced && <span className="footer-synced"> · {formatSynced(lastSynced)}</span>}
       </span>
       <div className="footer-actions">
         <button className="footer-btn" onClick={onExport} title="Export">

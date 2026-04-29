@@ -22,7 +22,8 @@
       "Bash(git filter-branch --force --msg-filter 'if [ \"$GIT_COMMIT\" = \"0350755c99555a72b03c703d5871b5195a5658b5\" ]; then *)",
       "Bash(git -C /Users/nassif/projets/bookmarX branch)",
       "Bash(npm install *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(git checkout *)"
     ],
     "additionalDirectories": [
       "/Users/nassif/projets/bookmarX/chrome/icons"

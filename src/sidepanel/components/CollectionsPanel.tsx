@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Bookmark, Category } from '../../types';
 
 interface Props {
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export default function CollectionsPanel({ categories, bookmarks, onClose, onAdd, onEdit, onDelete, onRecategorize }: Props) {
+  const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
+
   return (
     <div className="panel-overlay active" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="panel">
@@ -47,7 +50,7 @@ export default function CollectionsPanel({ categories, bookmarks, onClose, onAdd
                   </div>
                   <div className="category-actions">
                     <button className="btn btn-sm btn-secondary" onClick={() => onEdit(cat)}>Edit</button>
-                    <button className="btn btn-sm btn-danger" onClick={() => onDelete(cat.id)}>Del</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => setPendingDelete(cat)}>Del</button>
                   </div>
                 </div>
               );
@@ -55,6 +58,19 @@ export default function CollectionsPanel({ categories, bookmarks, onClose, onAdd
           </div>
         </div>
       </div>
+
+      {pendingDelete && (
+        <div className="confirm-overlay" onClick={() => setPendingDelete(null)}>
+          <div className="confirm-modal" onClick={e => e.stopPropagation()}>
+            <p className="confirm-title">Delete "{pendingDelete.name}"?</p>
+            <p className="confirm-sub">Bookmarks in this collection won't be deleted.</p>
+            <div className="confirm-actions">
+              <button className="btn btn-secondary" onClick={() => setPendingDelete(null)}>Cancel</button>
+              <button className="btn btn-danger" onClick={() => { onDelete(pendingDelete.id); setPendingDelete(null); }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
