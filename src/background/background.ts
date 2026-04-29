@@ -83,6 +83,7 @@ async function handleMessage(message: { action: string; data?: Record<string, un
     case 'ADD_TAG_TO_BOOKMARK':    return addTagToBookmark(data.bookmarkId as string, data.tagId as string);
     case 'REMOVE_TAG_FROM_BOOKMARK': return removeTagFromBookmark(data.bookmarkId as string, data.tagId as string);
     case 'EXPORT_BOOKMARKS':   return exportBookmarks(data.format as 'json' | 'csv');
+    case 'IMPORT_BOOKMARKS':   return importBookmarks(data.bookmarks as Record<string, unknown>[]);
     case 'SEARCH_BOOKMARKS':   return searchBookmarks(data.query as string);
     case 'GET_STATS':          return getStats();
     case 'RECATEGORIZE_BOOKMARKS': return recategorizeBookmarks();
@@ -94,6 +95,80 @@ async function handleMessage(message: { action: string; data?: Record<string, un
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+}
+
+async function importBookmarks(imported: Record<string, unknown>[]) {
+  try {
+    const result = await chrome.storage.local.get([STORAGE_KEYS.BOOKMARKS, STORAGE_KEYS.CATEGORIES, STORAGE_KEYS.TAGS]);
+    const bookmarks: Bookmark[] = result[STORAGE_KEYS.BOOKMARKS] || [];
+    const categories: Category[] = result[STORAGE_KEYS.CATEGORIES] || [];
+    const tags: Tag[] = result[STORAGE_KEYS.TAGS] || [];
+
+    const existingIds = new Set(bookmarks.map(b => b.id));
+    const tagColors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#0ea5e9', '#14b8a6'];
+    let added = 0;
+    let skipped = 0;
+
+    for (const item of imported) {
+      const id = item.id as string;
+      if (!id) continue;
+      if (existingIds.has(id)) { skipped++; continue; }
+
+      const bookmark: Bookmark = {
+        id,
+        text: (item.text as string) || '',
+        authorName: (item.authorName as string) || '',
+        authorHandle: (item.authorHandle as string) || '',
+        authorAvatar: item.authorAvatar as string | undefined,
+        tweetUrl: (item.tweetUrl as string) || '',
+        dateBookmarked: (item.dateBookmarked as string) || new Date().toISOString(),
+        createdAt: (item.createdAt as string) || new Date().toISOString(),
+        media: (item.media as Bookmark['media']) || [],
+        mediaType: (item.mediaType as Bookmark['mediaType']) || 'post',
+        hashtags: (item.hashtags as string[]) || [],
+        mentions: (item.mentions as string[]) || [],
+      };
+
+      // Re-link category by name
+      const categoryName = item.categoryName as string | undefined;
+      if (categoryName) {
+        let cat = categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
+        if (!cat) {
+          cat = { id: generateId(), name: categoryName, color: '#6366f1', keywords: [], createdAt: new Date().toISOString() };
+          categories.push(cat);
+        }
+        bookmark.categoryId = cat.id;
+      }
+
+      // Re-link tags by name
+      const tagNames = item.tagNames as string[] | undefined;
+      if (tagNames && tagNames.length > 0) {
+        bookmark.tagIds = [];
+        for (const tagName of tagNames) {
+          let tag = tags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+          if (!tag) {
+            tag = { id: generateId(), name: tagName, color: tagColors[tags.length % tagColors.length], createdAt: new Date().toISOString() };
+            tags.push(tag);
+          }
+          bookmark.tagIds.push(tag.id);
+        }
+      }
+
+      bookmarks.push(bookmark);
+      existingIds.add(id);
+      added++;
+    }
+
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.BOOKMARKS]: bookmarks,
+      [STORAGE_KEYS.CATEGORIES]: categories,
+      [STORAGE_KEYS.TAGS]: tags,
+    });
+
+    return { success: true, added, skipped };
+  } catch (error) {
+    return { success: false, error: (error as Error).message, added: 0, skipped: 0 };
+  }
 }
 
 function autoCategorize(bookmark: Bookmark, categories: Category[]): string | null {

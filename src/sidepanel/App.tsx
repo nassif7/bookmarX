@@ -146,14 +146,9 @@ export default function App() {
     loadData();
   };
 
-  const getFilteredBookmarks = (): Bookmark[] => {
-    let list = bookmarks;
-    if (activeCategory === 'uncategorized') {
-      list = list.filter(b => !b.categoryId);
-    } else if (activeCategory) {
-      list = list.filter(b => b.categoryId === activeCategory);
-    }
-    if (tagFilter) list = list.filter(b => b.tagIds?.includes(tagFilter));
+  const applyBaseFilters = (list: Bookmark[]): Bookmark[] => {
+    if (activeCategory === 'uncategorized') list = list.filter(b => !b.categoryId);
+    else if (activeCategory) list = list.filter(b => b.categoryId === activeCategory);
     if (typeFilter) list = list.filter(b => b.mediaType === typeFilter);
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -165,6 +160,18 @@ export default function App() {
       );
     }
     return list;
+  };
+
+  const getFilteredBookmarks = (): Bookmark[] => {
+    let list = applyBaseFilters(bookmarks);
+    if (tagFilter) list = list.filter(b => b.tagIds?.includes(tagFilter));
+    return list;
+  };
+
+  const getAvailableTags = (): Tag[] => {
+    const base = applyBaseFilters(bookmarks);
+    const usedIds = new Set(base.flatMap(b => b.tagIds ?? []));
+    return tags.filter(t => usedIds.has(t.id));
   };
 
   const openCategoryModal = (cat: Category | null = null) => {
@@ -219,6 +226,24 @@ export default function App() {
     addToast(`Exported as ${format.toUpperCase()}`, 'success');
   };
 
+  const handleImport = async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!Array.isArray(data)) { addToast('Invalid file — expected a JSON array', 'error'); return; }
+      const r = await sendMessage<{ success: boolean; added: number; skipped: number; error?: string }>({
+        action: 'IMPORT_BOOKMARKS', data: { bookmarks: data },
+      });
+      if (!r.success) { addToast(r.error ?? 'Import failed', 'error'); return; }
+      await loadData();
+      const msg = `Imported ${r.added} bookmark${r.added !== 1 ? 's' : ''}` +
+        (r.skipped > 0 ? ` · ${r.skipped} already existed` : '');
+      addToast(msg, 'success');
+    } catch {
+      addToast('Could not read file — make sure it is a valid JSON export', 'error');
+    }
+  };
+
   const createCategoryForDetail = async (data: { name: string; color: string; keywords: string[] }): Promise<Category> => {
     const r = await sendMessage<{ category: Category }>({ action: 'ADD_CATEGORY', data: { category: data } });
     addToast('Collection created', 'success');
@@ -248,6 +273,7 @@ export default function App() {
   }
 
   const filtered = getFilteredBookmarks();
+  const availableTags = getAvailableTags();
 
   return (
     <div className="app">
@@ -262,10 +288,10 @@ export default function App() {
         categories={categories}
         bookmarks={bookmarks}
         activeCategory={activeCategory}
-        onChange={setActiveCategory}
+        onChange={(cat) => { setActiveCategory(cat); setTagFilter(''); }}
       />
       <FiltersRow
-        tags={tags}
+        tags={availableTags}
         tagFilter={tagFilter}
         typeFilter={typeFilter}
         onTagFilter={setTagFilter}
@@ -288,6 +314,7 @@ export default function App() {
         bookmarkCount={bookmarks.length}
         categoryCount={categories.length}
         onExport={() => exportBookmarks('json')}
+        onImport={handleImport}
         onManage={() => setShowCollections(true)}
       />
       {showSettings && (
