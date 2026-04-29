@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(sed -i '' 's/Bookmarkd/BookmarX/g' /Users/nassif/projets/bookmarX/chrome/manifest.json /Users/nassif/projets/bookmarX/chrome/background/background.js)",
+      "Bash(sed -i '' 's/bookmarkd-injected/bookmarx-injected/g' /Users/nassif/projets/bookmarX/chrome/content/injected.js /Users/nassif/projets/bookmarX/chrome/content/content.js)",
+      "Bash(sed -i '' 's/_bookmarkdUrl/_bookmarxUrl/g' /Users/nassif/projets/bookmarX/chrome/content/injected.js)",
+      "Bash(convert --version)",
+      "Bash(python3 -c \"from PIL import Image; print\\('pillow ok'\\)\")",
+      "Bash(python3 -c \"import cairosvg; print\\('cairosvg ok'\\)\")",
+      "Bash(node -e \"const {createCanvas} = require\\('canvas'\\); console.log\\('canvas ok'\\)\")",
+      "Bash(pip3 install *)",
+      "Bash(python3 -c \"from PIL import Image; print\\('ok'\\)\")",
+      "Bash(python3)",
+      "Bash(git rm *)",
+      "Bash(git -C /Users/nassif/projets/bookmarX status)",
+      "Bash(git -C /Users/nassif/projets/bookmarX log --oneline -3)",
+      "Bash(git -C /Users/nassif/projets/bookmarX add README.md .gitignore)",
+      "Bash(git -C /Users/nassif/projets/bookmarX commit -m ' *)",
+      "Bash(git -C /Users/nassif/projets/bookmarX push)",
+      "Bash(git -C /Users/nassif/projets/bookmarX add README.md)",
+      "Bash(git filter-branch --force --msg-filter 'if [ \"$GIT_COMMIT\" = \"0350755c99555a72b03c703d5871b5195a5658b5\" ]; then *)",
+      "Bash(git -C /Users/nassif/projets/bookmarX branch)",
+      "Bash(npm install *)",
+      "Bash(npm run *)"
+    ],
+    "additionalDirectories": [
+      "/Users/nassif/projets/bookmarX/chrome/icons"
+    ]
+  }
+}
