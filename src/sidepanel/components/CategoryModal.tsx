@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Category } from '../../types';
 
 const COLOR_PRESETS = ['#f97316', '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -12,19 +12,62 @@ interface Props {
 export default function CategoryModal({ category, onClose, onSave }: Props) {
   const [name, setName] = useState('');
   const [color, setColor] = useState('#f97316');
-  const [keywords, setKeywords] = useState('');
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [kwInput, setKwInput] = useState('');
+  const kwInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setName(category?.name ?? '');
     setColor(category?.color ?? '#f97316');
-    setKeywords((category?.keywords ?? []).join(', '));
+    setKeywords(category?.keywords ?? []);
+    setKwInput('');
   }, [category]);
+
+  const commitInput = (val: string) => {
+    const kw = val.trim().toLowerCase();
+    if (kw && !keywords.includes(kw)) {
+      setKeywords(prev => [...prev, kw]);
+    }
+    setKwInput('');
+  };
+
+  const handleKwChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val.includes(',')) {
+      const parts = val.split(',');
+      // everything before the last comma becomes chips
+      parts.slice(0, -1).forEach(p => {
+        const kw = p.trim().toLowerCase();
+        if (kw) setKeywords(prev => prev.includes(kw) ? prev : [...prev, kw]);
+      });
+      setKwInput(parts[parts.length - 1].trimStart());
+    } else {
+      setKwInput(val);
+    }
+  };
+
+  const handleKwKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      commitInput(kwInput);
+    } else if (e.key === 'Backspace' && !kwInput) {
+      setKeywords(prev => prev.slice(0, -1));
+    }
+  };
+
+  const removeKeyword = (kw: string) => {
+    setKeywords(prev => prev.filter(k => k !== kw));
+    kwInputRef.current?.focus();
+  };
 
   const handleSave = () => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
-    const kws = keywords.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
-    onSave({ name: trimmedName, color, keywords: kws });
+    // Include any partially typed keyword
+    const all = kwInput.trim()
+      ? [...keywords, kwInput.trim().toLowerCase()].filter((k, i, a) => a.indexOf(k) === i)
+      : keywords;
+    onSave({ name: trimmedName, color, keywords: all });
   };
 
   return (
@@ -50,16 +93,35 @@ export default function CategoryModal({ category, onClose, onSave }: Props) {
               autoFocus
             />
           </div>
+
           <div className="form-group">
-            <label>Keywords <span className="label-hint">(comma-separated)</span></label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="e.g. ai, javascript, react"
-              value={keywords}
-              onChange={e => setKeywords(e.target.value)}
-            />
+            <label>Keywords <span className="label-hint">(comma or Enter to add)</span></label>
+            <div
+              className="kw-input-wrap"
+              onClick={() => kwInputRef.current?.focus()}
+            >
+              {keywords.map(kw => (
+                <span key={kw} className="kw-chip">
+                  {kw}
+                  <button
+                    className="kw-chip-remove"
+                    onClick={e => { e.stopPropagation(); removeKeyword(kw); }}
+                    tabIndex={-1}
+                  >×</button>
+                </span>
+              ))}
+              <input
+                ref={kwInputRef}
+                className="kw-chip-input"
+                placeholder={keywords.length === 0 ? 'e.g. ai, javascript, react' : ''}
+                value={kwInput}
+                onChange={handleKwChange}
+                onKeyDown={handleKwKeyDown}
+                onBlur={() => commitInput(kwInput)}
+              />
+            </div>
           </div>
+
           <div className="form-group">
             <label>Color</label>
             <div className="color-picker">

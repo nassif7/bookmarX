@@ -1028,6 +1028,61 @@ html, body {
   max-width: 140px;
 }
 
+/* ── Keyword chip input ──────────────────────────── */
+.kw-input-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  min-height: 36px;
+  padding: 5px 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: text;
+  transition: border-color var(--transition);
+}
+.kw-input-wrap:focus-within { border-color: var(--accent); }
+
+.kw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  background: var(--accent-muted);
+  color: var(--accent);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.kw-chip-remove {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0 0 0 1px;
+  cursor: pointer;
+  color: var(--accent);
+  opacity: 0.6;
+  font-size: 15px;
+  line-height: 1;
+}
+.kw-chip-remove:hover { opacity: 1; }
+
+.kw-chip-input {
+  flex: 1;
+  min-width: 80px;
+  border: none;
+  background: transparent;
+  color: var(--text-1);
+  font-size: 12px;
+  outline: none;
+  padding: 2px 0;
+}
+.kw-chip-input::placeholder { color: var(--text-3); }
+
 /* ── Collection picker (searchable dropdown) ─────── */
 .collection-picker { position: relative; }
 
