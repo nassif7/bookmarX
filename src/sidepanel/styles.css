@@ -1028,6 +1028,72 @@ html, body {
   max-width: 140px;
 }
 
+/* ── Collection picker (searchable dropdown) ─────── */
+.collection-picker { position: relative; }
+
+.collection-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition);
+}
+.collection-trigger:hover,
+.collection-trigger.open { border-color: var(--accent); }
+
+.collection-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  z-index: 20;
+  overflow: hidden;
+}
+
+.collection-search {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 12px;
+  outline: none;
+}
+.collection-search::placeholder { color: var(--text-3); }
+
+.collection-options { max-height: 180px; overflow-y: auto; }
+
+.collection-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text-1);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.collection-option:hover { background: var(--bg-2); }
+.collection-option.selected { color: var(--accent); font-weight: 500; }
+.collection-option.add-new {
+  color: var(--accent);
+  font-weight: 500;
+  border-top: 1px solid var(--border);
+}
+
 /* ── Animations ──────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes slideUp {

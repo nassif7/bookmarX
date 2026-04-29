@@ -219,6 +219,13 @@ export default function App() {
     addToast(`Exported as ${format.toUpperCase()}`, 'success');
   };
 
+  const createCategoryForDetail = async (data: { name: string; color: string; keywords: string[] }): Promise<Category> => {
+    const r = await sendMessage<{ category: Category }>({ action: 'ADD_CATEGORY', data: { category: data } });
+    addToast('Collection created', 'success');
+    await loadData();
+    return r.category;
+  };
+
   const completeOnboarding = async (selectedCategories: Array<{ name: string; color: string; keywords: string[] }>) => {
     for (const cat of selectedCategories) {
       await sendMessage({ action: 'ADD_CATEGORY', data: { category: cat } });
@@ -320,6 +327,7 @@ export default function App() {
           tags={tags}
           onClose={() => setDetailBookmark(null)}
           onAssignCategory={assignCategory}
+          onCreateCategory={createCategoryForDetail}
         />
       )}
       <ToastContainer toasts={toasts} />
