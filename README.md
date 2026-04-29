@@ -1,4 +1,4 @@
-# BookmarX — X (Twitter) Bookmark Manager
+# bookmarX — X (Twitter) Bookmark Manager
 
 A Chrome extension to manage your X bookmarks with collections, tags, filters, and smart search — all stored locally, no account needed.
 
@@ -19,13 +19,13 @@ A Chrome extension to manage your X bookmarks with collections, tags, filters, a
 ## How It Works
 
 1. Open [x.com/i/bookmarks](https://x.com/i/bookmarks) in Chrome
-2. Click the sync button in the BookmarX side panel
+2. Click the sync button in the bookmarX side panel
 3. The extension auto-scrolls through your bookmarks and captures them
 4. Browse, filter, and organize from the side panel — data stays on your machine
 
 ## Installation
 
-> BookmarX is not yet published to the Chrome Web Store. Install it locally in developer mode.
+> bookmarX is not yet published to the Chrome Web Store. Install it locally in developer mode.
 
 ### Prerequisites
 
@@ -47,7 +47,7 @@ npm run build
 2. Enable **Developer mode** (top-right toggle)
 3. Click **Load unpacked**
 4. Select the `dist/` folder
-5. Pin the BookmarX icon and open the side panel from any tab
+5. Pin the bookmarX icon and open the side panel from any tab
 
 ### Development
 
@@ -55,7 +55,7 @@ npm run build
 npm run dev   # watch mode — rebuilds on every save
 ```
 
-After each rebuild, go to `chrome://extensions/` and click the reload button on BookmarX to pick up changes.
+After each rebuild, go to `chrome://extensions/` and click the reload button on bookmarX to pick up changes.
 
 ## Project Structure
 

@@ -1,4 +1,4 @@
-# Branch: update-readme-and-remove-old-code
+# Branch: feat/quick-wins
 # Repo: bookmarX
 
 ## Goal

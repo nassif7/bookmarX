@@ -12,7 +12,7 @@ export default function TopBar({ onSettings }: Props) {
           <circle cx="4" cy="10" r="1.2" fill="currentColor" />
           <circle cx="10" cy="10" r="1.2" fill="currentColor" />
         </svg>
-        <span className="topbar-title">BookmarX</span>
+        <span className="topbar-title">bookmarX</span>
       </div>
       <div className="topbar-actions">
         <button className="icon-btn" onClick={onSettings} title="Settings">

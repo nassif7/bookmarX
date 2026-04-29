@@ -1,4 +1,7 @@
+import { useRef } from 'react';
+
 const ACCENT_PRESETS = [
+  { color: '#1d9bf0', label: 'Twitter Blue' },
   { color: '#f97316', label: 'Orange' },
   { color: '#6366f1', label: 'Indigo' },
   { color: '#8b5cf6', label: 'Violet' },
@@ -17,9 +20,13 @@ interface Props {
   onSync: () => void;
   onExportJson: () => void;
   onExportCsv: () => void;
+  onImport: (file: File) => void;
+  onManage: () => void;
 }
 
-export default function SettingsPanel({ theme, accent, onClose, onTheme, onAccent, onSync, onExportJson, onExportCsv }: Props) {
+export default function SettingsPanel({ theme, accent, onClose, onTheme, onAccent, onSync, onExportJson, onExportCsv, onImport, onManage }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   return (
     <div className="panel-overlay active" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="panel">
@@ -73,11 +80,31 @@ export default function SettingsPanel({ theme, accent, onClose, onTheme, onAccen
             <button className="btn btn-primary" onClick={onSync}>Sync now</button>
           </div>
           <div className="panel-section">
+            <p className="panel-label">Collections</p>
+            <button className="btn btn-secondary" onClick={onManage}>Manage collections</button>
+          </div>
+          <div className="panel-section">
             <p className="panel-label">Export data</p>
             <div className="btn-row">
               <button className="btn btn-secondary" onClick={onExportJson}>JSON</button>
               <button className="btn btn-secondary" onClick={onExportCsv}>CSV</button>
             </div>
+          </div>
+          <div className="panel-section">
+            <p className="panel-label">Import data</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) { onImport(file); e.target.value = ''; }
+              }}
+            />
+            <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+              Import JSON
+            </button>
           </div>
         </div>
       </div>

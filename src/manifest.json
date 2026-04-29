@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "BookmarX",
+  "name": "bookmarX",
   "version": "1.0.0",
   "description": "Save and manage your X (Twitter) bookmarks with categories, tags, and powerful search",
   "icons": {

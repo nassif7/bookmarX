@@ -17,7 +17,7 @@ import BookmarkDetailModal from './components/BookmarkDetailModal';
 import Onboarding from './components/Onboarding';
 import ToastContainer from './components/ToastContainer';
 
-const DEFAULT_ACCENT = '#f97316';
+const DEFAULT_ACCENT = '#1d9bf0';
 
 export default function App() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
@@ -38,6 +38,7 @@ export default function App() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [detailBookmark, setDetailBookmark] = useState<Bookmark | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const syncPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const addToast = useCallback((message: string, type: ToastItem['type'] = 'success') => {
@@ -95,6 +96,7 @@ export default function App() {
       if (msg.action !== 'SCROLL_COMPLETE') return;
       if (syncPollRef.current) clearInterval(syncPollRef.current);
       setIsSyncing(false);
+      setLastSynced(new Date());
       loadData().then(() => {
         const label = msg.data?.stoppedEarly
           ? 'Caught up — only new bookmarks fetched'
@@ -192,7 +194,6 @@ export default function App() {
   };
 
   const deleteCategory = async (id: string) => {
-    if (!confirm('Delete this collection?')) return;
     await sendMessage({ action: 'DELETE_CATEGORY', data: { id } });
     if (activeCategory === id) setActiveCategory('');
     addToast('Collection deleted', 'success');
@@ -258,6 +259,7 @@ export default function App() {
     await chrome.storage.local.set({ onboardingComplete: true });
     await loadData();
     setOnboardingDone(true);
+    startSync();
   };
 
   const skipOnboarding = async () => {
@@ -313,6 +315,7 @@ export default function App() {
       <Footer
         bookmarkCount={bookmarks.length}
         categoryCount={categories.length}
+        lastSynced={lastSynced}
         onExport={() => exportBookmarks('json')}
         onImport={handleImport}
         onManage={() => setShowCollections(true)}
@@ -327,6 +330,8 @@ export default function App() {
           onSync={() => { setShowSettings(false); startSync(); }}
           onExportJson={() => { setShowSettings(false); exportBookmarks('json'); }}
           onExportCsv={() => { setShowSettings(false); exportBookmarks('csv'); }}
+          onImport={handleImport}
+          onManage={() => { setShowSettings(false); setShowCollections(true); }}
         />
       )}
       {showCollections && (
