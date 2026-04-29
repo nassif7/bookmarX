@@ -1,4 +1,4 @@
-# Branch: migrate-to-react-and-TS
+# Branch: update-readme-and-remove-old-code
 # Repo: bookmarX
 
 ## Goal

@@ -1,77 +1,92 @@
-# BookmarX - X (Twitter) Bookmark Manager
+# BookmarX — X (Twitter) Bookmark Manager
 
-A browser extension that helps X (Twitter) users manage their bookmarks properly with categories, tags, and powerful search.
+A Chrome extension to manage your X bookmarks with collections, tags, filters, and smart search — all stored locally, no account needed.
 
 ## Support the Project
-
-If you find BookmarX useful, consider supporting its development:
 
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/nn498137)
 
 ## Features
 
-- 🔍 **Search** - Search bookmarks by keyword
-- 📁 **Categories** - Create, rename, delete categories (like folders)
-- 🏷️ **Tags** - Assign tags to bookmarks
-- 📌 **Organize** - Assign bookmarks to a category
-- 📤 **Export** - Export all bookmarks as CSV or JSON
-- 📸 **Media** - Capture and display media from bookmarked tweets
+- **Sync** — Auto-scrolls your X bookmarks page and captures everything
+- **Collections** — Create keyword-based collections that auto-sort bookmarks as you sync
+- **Tags & media filters** — Filter by tag or media type (photo, video, thread, post)
+- **Search** — Search across tweet text, author, handle, and hashtags
+- **Bookmark detail** — View full tweet, assign to a collection, see tags
+- **Import / Export** — Export as JSON or CSV; re-import a previous export with deduplication
+- **Themes** — Light, dark, or system theme with a custom accent color
 
 ## How It Works
 
-1. When you visit x.com, the extension automatically intercepts X's internal API responses that contain bookmark data
-2. Bookmarks are saved to local extension storage automatically — no manual trigger needed
-3. Click the extension icon to open the full management UI
-
-## Data Captured
-
-- Tweet text
-- Author name
-- Author handle
-- Tweet URL
-- Date bookmarked
-- Media (if any)
-- Hashtags and mentions
+1. Open [x.com/i/bookmarks](https://x.com/i/bookmarks) in Chrome
+2. Click the sync button in the BookmarX side panel
+3. The extension auto-scrolls through your bookmarks and captures them
+4. Browse, filter, and organize from the side panel — data stays on your machine
 
 ## Installation
 
-> **Note:** BookmarX is not yet published to the Chrome Web Store. Follow the steps below to install it locally in developer mode.
+> BookmarX is not yet published to the Chrome Web Store. Install it locally in developer mode.
 
-### Chrome
+### Prerequisites
 
-1. [Download or clone this repository](https://github.com/nassif/bookmarX) to your machine
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable **Developer mode** using the toggle in the top-right corner
-4. Click **Load unpacked**
-5. Select the `chrome` folder inside the project directory
-6. The BookmarX icon should appear in your extensions bar — pin it for easy access
-7. Visit [x.com](https://x.com) and open your bookmarks to start syncing
+- [Node.js](https://nodejs.org) 18+
+- npm
 
-### Firefox
+### Build
 
-> 🚧 Firefox support is coming soon.
+```bash
+git clone https://github.com/nassif/bookmarX
+cd bookmarX
+npm install
+npm run build
+```
+
+### Load in Chrome
+
+1. Navigate to `chrome://extensions/`
+2. Enable **Developer mode** (top-right toggle)
+3. Click **Load unpacked**
+4. Select the `dist/` folder
+5. Pin the BookmarX icon and open the side panel from any tab
+
+### Development
+
+```bash
+npm run dev   # watch mode — rebuilds on every save
+```
+
+After each rebuild, go to `chrome://extensions/` and click the reload button on BookmarX to pick up changes.
 
 ## Project Structure
 
 ```
 bookmarX/
-├── chrome/
-│   ├── manifest.json          # Chrome manifest (MV3)
+├── src/
+│   ├── manifest.json              # Chrome MV3 manifest
+│   ├── types.ts                   # Shared TypeScript types
 │   ├── background/
-│   │   └── background.js      # Service worker
+│   │   └── background.ts          # Service worker (storage, message handling)
 │   ├── content/
-│   │   └── content.js        # Content script (API interception)
-│   ├── popup/
-│   │   ├── popup.html        # Popup UI
-│   │   ├── popup.js          # Popup logic
-│   │   └── styles.css        # UI styles
-│   └── icons/                # Extension icons
+│   │   ├── content.ts             # Content script (API interception)
+│   │   └── injected.ts            # MAIN world script (XHR/fetch hooks)
+│   ├── sidepanel/
+│   │   ├── index.html
+│   │   ├── main.tsx
+│   │   ├── styles.css
+│   │   ├── App.tsx                # Root component and state
+│   │   ├── components/            # UI components
+│   │   └── lib/                   # Utilities and Chrome messaging
+│   └── public/
+│       └── icons/                 # Extension icons
+├── dist/                          # Built extension (load this in Chrome)
+├── vite.config.ts
+├── tsconfig.json
+└── package.json
 ```
 
 ## Storage
 
-- Uses Chrome local extension storage
-- No server required — all data stays on your machine
+All data is stored in Chrome's local extension storage. Nothing is sent to any server.
 
 ## License
 
