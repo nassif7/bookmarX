@@ -1,3 +1,4 @@
 firefox/
 node_modules/
 dist/
+.claude/
