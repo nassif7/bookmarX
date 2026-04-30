@@ -40,6 +40,7 @@
     consecutiveZeroAdds = 0;
 
     while (unchangedRuns < 4 && !stopEarly) {
+      if (!window.location.pathname.startsWith('/i/bookmarks')) { stopEarly = true; break; }
       window.scrollTo(0, document.documentElement.scrollHeight);
       await sleep(1800);
       const newHeight = document.documentElement.scrollHeight;
@@ -112,6 +113,10 @@
   chrome.runtime.onMessage.addListener((message: { action: string }, _sender, sendResponse) => {
     if (message.action === 'START_AUTO_SCROLL') {
       startAutoScroll();
+      sendResponse({ success: true });
+    }
+    if (message.action === 'STOP_SCROLL') {
+      stopEarly = true;
       sendResponse({ success: true });
     }
     if (message.action === 'GET_PAGE_INFO') {

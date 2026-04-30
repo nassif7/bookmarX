@@ -1,5 +1,7 @@
 # bookmarX — X (Twitter) Bookmark Manager
 
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+
 A Chrome extension to manage your X bookmarks with collections, tags, filters, and smart search — all stored locally, no account needed.
 
 ## Support the Project

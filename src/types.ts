@@ -7,7 +7,7 @@ export interface Bookmark {
   tweetUrl: string;
   dateBookmarked: string;
   createdAt: string;
-  media?: Array<{ type: string; url: string }>;
+  media?: Array<{ type: string; url: string; thumb?: string }>;
   mediaType: 'photo' | 'video' | 'thread' | 'post';
   hashtags?: string[];
   mentions?: string[];

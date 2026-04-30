@@ -142,10 +142,12 @@ export default function App() {
     }, 1000);
   };
 
-  const stopSync = () => {
+  const stopSync = async () => {
     if (syncPollRef.current) clearInterval(syncPollRef.current);
     setIsSyncing(false);
     loadData();
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => [] as chrome.tabs.Tab[]);
+    if (tab?.id) chrome.tabs.sendMessage(tab.id, { action: 'STOP_SCROLL' }).catch(() => {});
   };
 
   const applyBaseFilters = (list: Bookmark[]): Bookmark[] => {

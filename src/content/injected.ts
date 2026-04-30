@@ -59,12 +59,20 @@
     ] as Array<Record<string, unknown>>;
 
     const seenMedia = new Set<string>();
-    const media: Array<{ type: string; url: string }> = [];
+    const media: Array<{ type: string; url: string; thumb?: string }> = [];
     for (const m of mediaItems) {
-      const key = (m.media_url_https || m.url) as string;
-      if (!seenMedia.has(key)) {
-        seenMedia.add(key);
-        media.push({ type: m.type as string, url: key });
+      const thumb = (m.media_url_https || m.url) as string;
+      if (seenMedia.has(thumb)) continue;
+      seenMedia.add(thumb);
+      const mType = m.type as string;
+      if (mType === 'video' || mType === 'animated_gif') {
+        const variants = ((m.video_info as Record<string, unknown> | undefined)?.variants as Array<{ content_type: string; url: string; bitrate?: number }> | undefined) ?? [];
+        const best = variants
+          .filter(v => v.content_type === 'video/mp4')
+          .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0))[0];
+        media.push({ type: mType, url: best?.url ?? thumb, thumb });
+      } else {
+        media.push({ type: mType, url: thumb });
       }
     }
 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "bookmarX",
   "version": "1.0.0",
-  "description": "Turn your X bookmarks into a searchable knowledge base. Collections, tags, smart filters — all local. No account, no server needed.",
+  "description": "Turn your X bookmarks into a searchable knowledge base. Collections, tags, smart filters, all local. No account, no server needed.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -46,7 +46,7 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' https://pbs.twimg.com https://abs.twimg.com data:;"
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' https://pbs.twimg.com https://abs.twimg.com data:; media-src https://video.twimg.com https://pbs.twimg.com;"
   },
   "web_accessible_resources": [
     {
