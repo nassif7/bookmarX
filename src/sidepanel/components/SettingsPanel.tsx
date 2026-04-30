@@ -106,6 +106,17 @@ export default function SettingsPanel({ theme, accent, onClose, onTheme, onAccen
               Import JSON
             </button>
           </div>
+          <div className="panel-section">
+            <p className="panel-label">Support bookmarX</p>
+            <a
+              className="btn btn-secondary"
+              href="https://ko-fi.com/nn498137"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ☕ Buy me a coffee
+            </a>
+          </div>
         </div>
       </div>
     </div>
