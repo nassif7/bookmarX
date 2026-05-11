@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to bookmarX</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #0f1419;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .content-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            flex: 1;
+            padding: 60px;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        .gif-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            background: #f7f9fa;
+            overflow: hidden;
+        }
+
+        .gif-section img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 12px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 16px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #0f1419;
+        }
+
+        .subtitle {
+            font-size: 1.15em;
+            color: #536471;
+            margin-bottom: 32px;
+            line-height: 1.5;
+            max-width: 90%;
+        }
+
+        .instructions {
+            margin-bottom: 32px;
+            max-width: 90%;
+        }
+
+        .instructions h3 {
+            font-size: 1.05em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #536471;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .instructions ol {
+            list-style: none;
+            counter-reset: step-counter;
+            margin: 0;
+            padding: 0;
+        }
+
+        .instructions li {
+            counter-increment: step-counter;
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            font-size: 1.05em;
+            line-height: 1.4;
+            color: #0f1419;
+        }
+
+        .instructions li::before {
+            content: counter(step-counter);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            background: #1da1f2;
+            color: #ffffff;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 0.85em;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        #pin-status {
+            font-size: 1em;
+            margin-bottom: 24px;
+            padding: 8px 12px;
+            background: rgba(29, 161, 242, 0.1);
+            border-left: 2px solid #1da1f2;
+            border-radius: 4px;
+            color: #1da1f2;
+            display: inline-block;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            max-width: 90%;
+        }
+
+        button {
+            padding: 12px 28px;
+            font-size: 1.05em;
+            background: #1da1f2;
+            color: #ffffff;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s ease, transform 0.1s ease;
+            flex: 1;
+            max-width: 200px;
+        }
+
+        button:hover {
+            background: #1a91da;
+            transform: scale(1.02);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .gif-section {
+                flex: 0.6;
+                padding: 30px;
+            }
+
+            .content-section {
+                flex: 0.4;
+                padding: 40px 30px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .subtitle {
+                font-size: 0.95em;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                overflow-y: auto;
+            }
+
+            .container {
+                flex-direction: column;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .content-section,
+            .gif-section {
+                flex: 1;
+                padding: 24px;
+            }
+
+            h1 {
+                font-size: 1.6em;
+            }
+
+            .subtitle {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="content-section">
+            <h1>Welcome to bookmarX</h1>
+            <p class="subtitle">Turn your X bookmarks into a searchable knowledge base. Collections, tags, smart filters.
+                all local. No account, no server needed.</p>
+
+            <div class="instructions">
+                <h3>📌 How to Pin bookmarX</h3>
+                <ol>
+                    <li>Click the <strong style="margin: 0 4px;">Puzzle Piece Icon</strong> in your toolbar</li>
+                    <li>Find <strong style="margin: 0 4px;">bookmarX</strong> in the dropdown</li>
+                    <li>Click the <strong style="margin: 0 4px;">Pin Icon</strong> next to it</li>
+                    <li>Done! bookmarX is now always visible</li>
+                </ol>
+            </div>
+
+            <div id="pin-status">Checking pin status...</div>
+
+            <div class="button-group">
+                <button id="launch-button">Got it!</button>
+            </div>
+        </div>
+
+        <div class="gif-section">
+            <img src="pin-extension.gif" alt="How to pin the bookmarX extension" />
+        </div>
+    </div>
+
+    <script src="welcome.js"></script>
+</body>
+</html>

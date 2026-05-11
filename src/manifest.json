@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "bookmarX",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Turn your X bookmarks into a searchable knowledge base. Collections, tags, smart filters, all local. No account, no server needed.",
   "icons": {
     "16": "icons/icon16.png",
@@ -41,6 +41,11 @@
     {
       "matches": ["https://x.com/*", "https://twitter.com/*"],
       "js": ["content/content.ts"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://x.com/*", "https://twitter.com/*"],
+      "js": ["content/hint.ts"],
       "run_at": "document_idle"
     }
   ],

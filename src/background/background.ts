@@ -47,9 +47,12 @@ async function initializeStorage() {
   if (!result[STORAGE_KEYS.TAGS]) await chrome.storage.local.set({ [STORAGE_KEYS.TAGS]: [] });
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   initializeStorage();
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  if (details.reason === 'install' || details.reason === 'update') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
+  }
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -57,7 +60,18 @@ chrome.runtime.onStartup.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message && typeof message.action === 'string' && message.action === 'CLOSE_WELCOME_TAB') {
+    const tabId = sender.tab?.id;
+    if (typeof tabId === 'number') {
+      chrome.tabs.remove(tabId);
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false, error: 'No tab ID available' });
+    }
+    return true;
+  }
+
   handleMessage(message).then(sendResponse);
   return true;
 });

@@ -50,6 +50,11 @@
     }
 
     chrome.runtime.sendMessage({ action: 'SCROLL_COMPLETE', data: { stoppedEarly: stopEarly } }).catch(() => {});
+
+    if (window.location.pathname.startsWith('/i/bookmarks')) {
+      const homeUrl = window.location.hostname.includes('x.com') ? 'https://x.com/' : 'https://twitter.com/home';
+      window.location.href = homeUrl;
+    }
   }
 
   async function startAutoScroll(): Promise<void> {

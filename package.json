@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
+    "postbuild": "cp welcome.html welcome.js dist/",
     "preview": "vite preview"
   },
   "dependencies": {
