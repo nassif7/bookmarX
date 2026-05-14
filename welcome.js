@@ -29,6 +29,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   if (launchButton) {
     launchButton.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'https://x.com/i/bookmarks' });
       chrome.runtime.sendMessage({ action: 'CLOSE_WELCOME_TAB' });
     });
   }

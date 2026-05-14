@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "bookmarX",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Turn your X bookmarks into a searchable knowledge base. Collections, tags, smart filters, all local. No account, no server needed.",
   "icons": {
     "16": "icons/icon16.png",
@@ -21,7 +21,8 @@
     "storage",
     "activeTab",
     "tabs",
-    "sidePanel"
+    "sidePanel",
+    "scripting"
   ],
   "host_permissions": [
     "https://x.com/*",

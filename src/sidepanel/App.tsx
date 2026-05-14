@@ -124,15 +124,23 @@ export default function App() {
     if (!tab.url.includes('x.com') && !tab.url.includes('twitter.com')) {
       addToast('Open x.com first, then sync', 'warning'); return;
     }
-    try {
-      await new Promise<void>((resolve, reject) => {
-        chrome.tabs.sendMessage(tab.id!, { action: 'START_AUTO_SCROLL' }, () => {
-          if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-          else resolve();
-        });
+    const sendStart = () => new Promise<void>((resolve, reject) => {
+      chrome.tabs.sendMessage(tab.id!, { action: 'START_AUTO_SCROLL' }, () => {
+        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+        else resolve();
       });
+    });
+    try {
+      await sendStart();
     } catch {
-      addToast('Could not reach x.com — try refreshing it', 'error'); return;
+      try {
+        await chrome.scripting.executeScript({ target: { tabId: tab.id! }, files: ['content/injected.js'], world: 'MAIN' });
+        await chrome.scripting.executeScript({ target: { tabId: tab.id! }, files: ['content/content.js'] });
+        await new Promise(r => setTimeout(r, 300));
+        await sendStart();
+      } catch {
+        addToast('Could not reach x.com — try refreshing it', 'error'); return;
+      }
     }
     setIsSyncing(true);
     setSyncCount(0);
